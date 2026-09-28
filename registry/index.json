@@ -1,30 +1,61 @@
 {
-  "schema": "asp-registry/0.1",
-  "generated_at": "2026-09-28T10:09:13Z",
-  "note": "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
-  "mirrors": [
-    "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
-    "https://REPLACE-ACCOUNT.github.io/asp/registry"
-  ],
-  "packs": {
-    "ai-pm": {
-      "version": "v0.1.0",
-      "display_name": "AI 产品经理冷启动包",
-      "zip": "packs/ai-pm-v0.1.0.zip",
-      "sha256": "749b3a31e60228f3c0a5b3738a908949ab8da401b6a0f667c527afb8e5cb9292",
-      "skills_included": ["prd-drafting", "prd-review", "competitor-analysis", "user-story", "metric-design", "ai-eval-design"],
-      "prompts_count": 42,
-      "mcp_defaults": ["context7", "memory"],
-      "adapters_min_version": "0.1"
-    }
-  },
-  "adapters": {
-    "claude-code": { "version": "0.1", "changelog": "初始版（实测）" },
-    "zcode": { "version": "0.1", "changelog": "初始版，mcp.servers 键实证（实测）" },
-    "dsh": { "version": "0.1", "changelog": "初始版，AGENTS.md 原生支持实证；MCP template-only" },
-    "codex": { "version": "0.1-dev", "changelog": "文档调研版，W2 实测" },
-    "cursor": { "version": "0.1-dev", "changelog": "文档调研版（mdc 规则包装），W2 实测" },
-    "opencode": { "version": "0.1-dev", "changelog": "文档调研版（mcp 字段专用模板），W2 实测" },
-    "kimi": { "version": "0.1-dev", "changelog": "调研中，enabled=false 不参与安装" }
-  }
+    "schema":  "asp-registry/0.1",
+    "generated_at":  "2026-09-28T13:22:35Z",
+    "note":  "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
+    "mirrors":  [
+                    "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
+                    "https://REPLACE-ACCOUNT.github.io/asp/registry"
+                ],
+    "packs":  {
+                  "ai-pm":  {
+                                "version":  "v0.2.0",
+                                "display_name":  "AI 产品经理冷启动包",
+                                "zip":  "packs/ai-pm-v0.2.0.zip",
+                                "sha256":  "f34ecdf5d39e830d3a2c633bad80fcd324bed2c285fb0a622e58762e403fdf9e",
+                                "skills_included":  [
+                                                        "prd-drafting",
+                                                        "prd-review",
+                                                        "competitor-analysis",
+                                                        "user-story",
+                                                        "metric-design",
+                                                        "ai-eval-design"
+                                                    ],
+                                "prompts_count":  42,
+                                "mcp_defaults":  [
+                                                     "context7",
+                                                     "memory"
+                                                 ],
+                                "adapters_min_version":  "0.1"
+                            }
+              },
+    "adapters":  {
+                     "claude-code":  {
+                                         "version":  "0.1",
+                                         "changelog":  "初始版（实测）"
+                                     },
+                     "zcode":  {
+                                   "version":  "0.1",
+                                   "changelog":  "初始版，mcp.servers 键实证（实测）"
+                               },
+                     "dsh":  {
+                                 "version":  "0.1",
+                                 "changelog":  "初始版，AGENTS.md 原生支持实证；MCP template-only"
+                             },
+                     "codex":  {
+                                   "version":  "0.1-dev",
+                                   "changelog":  "文档调研版，W2 实测"
+                               },
+                     "cursor":  {
+                                    "version":  "0.1-dev",
+                                    "changelog":  "文档调研版（mdc 规则包装），W2 实测"
+                                },
+                     "opencode":  {
+                                      "version":  "0.1-dev",
+                                      "changelog":  "文档调研版（mcp 字段专用模板），W2 实测"
+                                  },
+                     "kimi":  {
+                                  "version":  "0.1-dev",
+                                  "changelog":  "调研中，enabled=false 不参与安装"
+                              }
+                 }
 }

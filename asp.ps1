@@ -143,6 +143,43 @@ function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$Ke
     return @{ added = $added; skipped = $skipped; note = "" }
 }
 
+# ---------- MCP TOML 托管块写入（Codex config.toml 用；标记间幂等替换）----------
+$TomlBegin = "# >>> asp:mcp:begin >>>"
+$TomlEnd   = "# <<< asp:mcp:end <<<"
+
+function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$Requires, [string]$Tag = "") {
+    if (-not (Test-Path $TemplateFile)) { return @{ added = @(); skipped = @(); note = "无模板" } }
+    if ($Requires -and -not (Test-Command $Requires)) {
+        return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires（MCP 服务器运行需要它）" }
+    }
+    $tplRaw = [System.IO.File]::ReadAllText($TemplateFile)
+    # 从模板提取服务器名（仅用于报告）
+    $names = @()
+    foreach ($m in [regex]::Matches($tplRaw, "(?m)^\s*\[mcp_servers\.([A-Za-z0-9_\-]+)\]")) { $names += $m.Groups[1].Value }
+    if ($names.Count -eq 0) { return @{ added = @(); skipped = @(); note = "模板无 [mcp_servers.*]" } }
+
+    $block = $TomlBegin + "`r`n" + $tplRaw.TrimEnd() + "`r`n" + $TomlEnd
+    if (Test-Path $TargetPath) {
+        $raw = [System.IO.File]::ReadAllText($TargetPath)
+        Backup-File $TargetPath $Tag
+        if ($raw -match [regex]::Escape($TomlBegin)) {
+            # 已存在托管块：检测已有服务器是否与模板重名（重名即用户/历史已配，整块替换为最新模板）
+            $pattern = "(?s)(" + [regex]::Escape($TomlBegin) + ").*?(" + [regex]::Escape($TomlEnd) + ")"
+            $new = $raw -replace $pattern, ($block -replace '\$', '$$')
+            Write-Utf8NoBom $TargetPath $new
+            return @{ added = @(); skipped = @(); note = ""; updated = $true }
+        } else {
+            Write-Utf8NoBom $TargetPath ($raw.TrimEnd() + "`r`n`r`n" + $block + "`r`n")
+            return @{ added = $names; skipped = @(); note = "" }
+        }
+    } else {
+        $dir = Split-Path $TargetPath -Parent
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        Write-Utf8NoBom $TargetPath ($block + "`r`n")
+        return @{ added = $names; skipped = @(); note = "" }
+    }
+}
+
 # ---------- 引导面板（未检测到任何 agent）----------
 function Show-Guide {
     Write-Host ""
@@ -215,6 +252,13 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
         } elseif ($a.mcp.strategy -eq "template-only") {
             Write-Host "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录" -ForegroundColor DarkGray
+        } elseif ($a.mcp.strategy -eq "toml-managed") {
+            $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
+            $r = Merge-TomlManaged $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.requires $a.id
+            if ($r.updated)               { Write-Host "    MCP 托管块已更新（模板内 asp-* 服务器）" }
+            elseif ($r.added.Count -gt 0) { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
+            if ($r.note)                { Write-Host ("    MCP {0}" -f $r.note) -ForegroundColor Yellow }
+            $report += ("{0}: MCP toml +{1}" -f $a.name, $r.added.Count)
         }
     }
 
