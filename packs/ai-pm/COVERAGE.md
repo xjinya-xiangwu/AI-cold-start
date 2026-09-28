@@ -114,6 +114,11 @@
 
 ## 缺口汇总与优先级建议
 
+> 2026-09-28 GitHub 定向调研结论（详见 collector/reports/2026-09-28-pm-gaps.md）：
+> 可采集源 = janellecipriano/pm-skills（MIT，含 status-report/postmortem 等管理全套）、XiangquanRuan/product-ops（MIT 双语，反馈/增长/竞品情报流程）、wshobson postmortem-writing + pptx 套件（MIT）。
+> **License 红线：deanpeters/Product-Manager-Skills（7.1k★ 最大竞品）= CC BY-NC-SA 非商业，不可采集，仅竞品参考**；Digidai/meshcode/growth-lifecycle 等同属不可采集。
+> bug 分级与需求池分诊在 GitHub 无产品向命中，走自产。
+
 ### P0（PM 高频刚需，建议 v0.4.0）
 
 1. **feedback-triage 需求池管理**：多渠道反馈（客服/群/应用商店）→去重→分级→转需求，与 feature-prioritization 衔接（#11/#43）
