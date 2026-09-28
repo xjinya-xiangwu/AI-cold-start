@@ -1,22 +1,22 @@
 {
   "id": "kimi",
-  "name": "Kimi CLI / Kimiwork",
-  "version": "0.1-dev",
-  "detect": ["~/.kimi"],
-  "skills_dir": "~/.kimi/skills",
+  "name": "KimiWork (Kimi Claw)",
+  "version": "0.2",
+  "detect": ["~/.kimi_openclaw", "~/.kimi/kimi-claw"],
+  "skills_dir": "~/.kimi_openclaw/workspace/skills",
   "instructions": {
-    "mode": "workspace",
-    "filename": "AGENTS.md",
-    "note": "Kimi CLI 支持 MCP（官方确认）。全局配置目录 ~/.kimi/ 为推测值，AGENTS.md 支持情况与 skills 机制 W2 实测后回填；未确认前本适配器默认不参与安装（enabled=false）"
+    "mode": "managed-section",
+    "target": "~/.kimi_openclaw/workspace/AGENTS.md",
+    "note": "2026-09-28 Win 真机实测（KimiWork 桌面版 = Kimi Claw/openclaw 形态）：skills 落位 ~/.kimi_openclaw/workspace/skills/（本机已有官方 skills 实证，SKILL.md 格式一致）；AGENTS.md 落位同 workspace 根（openclaw 标准指令文件，实证存在）。全局固定 workspace，非逐项目部署"
   },
-  "enabled": false,
+  "enabled": true,
   "mcp": {
     "strategy": "template-only",
-    "target": "~/.kimi/mcp.json",
+    "target": "",
     "key": "mcpServers",
     "template": "claude-code.mcp.json",
     "requires": "npx",
-    "note": "格式与启用方式待实测，先以模板形式提供"
+    "note": "KimiWork 工具体系走 openclaw 插件（openclaw.json plugins 字段），未暴露独立 mcpServers 配置文件；MCP 接入方式待研究，先 template-only 不写入"
   },
-  "smoke": { "cmd": "kimi --version" }
+  "smoke": { "cmd": "", "note": "桌面版无 CLI；以 detect 特征目录存在性为准（~/.kimi_openclaw）" }
 }

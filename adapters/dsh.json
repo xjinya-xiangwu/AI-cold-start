@@ -1,13 +1,13 @@
 {
   "id": "dsh",
   "name": "DeepSeek Harness",
-  "version": "0.1",
+  "version": "0.2",
   "detect": ["~/.dsh"],
   "skills_dir": "~/.dsh/skills",
   "instructions": {
-    "mode": "workspace",
-    "filename": "AGENTS.md",
-    "note": "DSH 原生加载 workspace 根 AGENTS.md（官方确认）。通过 'asp agents <项目目录>' 部署"
+    "mode": "managed-section",
+    "target": "~/.dsh/AGENTS.md",
+    "note": "2026-09-28 Win 真机实测（dsh 0.1.5-rc.2）：全局 ~/.dsh/AGENTS.md 在每次会话开始时自动注入（本机实证，文件头自述）；skills 全局目录 ~/.dsh/skills/ 实证有效（与官方 skills 同格式）。项目级 AGENTS.md（workspace 根）亦原生支持，如需可另跑 asp agents <目录>"
   },
   "mcp": {
     "strategy": "template-only",

@@ -29,11 +29,13 @@ function Expand-Tilde([string]$Path) {
     return $Path
 }
 
-function Backup-File([string]$Path) {
+function Backup-File([string]$Path, [string]$Tag = "") {
     if (Test-Path $Path) {
         if (-not (Test-Path $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null }
         $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $dest = Join-Path $BackupDir ((Split-Path $Path -Leaf) + "." + $stamp + ".bak")
+        # Tag（如 agent id）用于区分不同 agent 的同名文件（如各自根下的 AGENTS.md），避免互相覆盖
+        $prefix = if ($Tag) { $Tag + "-" } else { "" }
+        $dest = Join-Path $BackupDir ($prefix + (Split-Path $Path -Leaf) + "." + $stamp + ".bak")
         Copy-Item $Path $dest -Force
     }
 }
@@ -68,7 +70,7 @@ function Write-Utf8NoBom([string]$Path, [string]$Content) {
 }
 
 # ---------- AGENTS.md 部署（managed section，幂等）----------
-function Deploy-ManagedSection([string]$Content, [string]$Target) {
+function Deploy-ManagedSection([string]$Content, [string]$Target, [string]$Tag = "") {
     $section = $BeginMark + "`r`n" + $Content + "`r`n" + $EndMark
     if (Test-Path $Target) {
         $raw = [System.IO.File]::ReadAllText($Target)
@@ -76,11 +78,11 @@ function Deploy-ManagedSection([string]$Content, [string]$Target) {
             # 替换标记间内容（保留标记外用户内容）
             $pattern = "(?s)(" + [regex]::Escape($BeginMark) + ").*?(" + [regex]::Escape($EndMark) + ")"
             $new = $raw -replace $pattern, ($BeginMark + "`r`n" + $Content + "`r`n" + $EndMark)
-            Backup-File $Target
+            Backup-File $Target $Tag
             Write-Utf8NoBom $Target $new
             return "updated"
         } else {
-            Backup-File $Target
+            Backup-File $Target $Tag
             Write-Utf8NoBom $Target ($raw + "`r`n" + $section)
             return "appended"
         }
@@ -93,7 +95,7 @@ function Deploy-ManagedSection([string]$Content, [string]$Target) {
 }
 
 # ---------- MCP 配置合并（仅新增键，不覆盖用户已有）----------
-function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$KeyPath, [string]$Requires) {
+function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$KeyPath, [string]$Requires, [string]$Tag = "") {
     if (-not (Test-Path $TemplateFile)) { return @{ added = @(); skipped = @(); note = "无模板" } }
     if ($Requires -and -not (Test-Command $Requires)) {
         return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires（MCP 服务器运行需要它）" }
@@ -103,7 +105,7 @@ function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$Ke
     if (-not $tplServers) { return @{ added = @(); skipped = @(); note = "模板无 servers" } }
 
     if (Test-Path $TargetPath) {
-        Backup-File $TargetPath
+        Backup-File $TargetPath $Tag
         $cfg = Get-Content $TargetPath -Raw -Encoding UTF8 | ConvertFrom-Json
     } else {
         $cfg = New-Object PSObject
@@ -196,7 +198,7 @@ function Invoke-Install([string]$PackName) {
         # 2) AGENTS.md（全局型；workspace 型在 asp agents 子命令处理）
         if ($a.instructions.mode -eq "managed-section" -and $a.instructions.target) {
             $agentsMd = Get-Content (Join-Path $packDir "AGENTS.md") -Raw -Encoding UTF8
-            $r = Deploy-ManagedSection $agentsMd (Expand-Tilde $a.instructions.target)
+            $r = Deploy-ManagedSection $agentsMd (Expand-Tilde $a.instructions.target) $a.id
             Write-Host ("    AGENTS.md -> {0} ({1})" -f $a.instructions.target, $r)
             $report += ("{0}: AGENTS.md {1}" -f $a.name, $r)
         } elseif ($a.instructions.mode -eq "workspace") {
@@ -206,7 +208,7 @@ function Invoke-Install([string]$PackName) {
         # 3) MCP
         if ($a.mcp.strategy -eq "merge") {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
-            $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires
+            $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires $a.id
             if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
             if ($r.skipped.Count -gt 0)   { Write-Host ("    MCP 跳过(已存在): {0}" -f ($r.skipped -join ", ")) -ForegroundColor DarkGray }
             if ($r.note)                  { Write-Host ("    MCP {0}" -f $r.note) -ForegroundColor Yellow }
@@ -243,7 +245,7 @@ function Invoke-Agents([string]$PackName, [string]$Dir) {
     foreach ($a in (Get-Adapters)) {
         if ($a.instructions.mode -eq "workspace") {
             $target = Join-Path $Dir $a.instructions.filename
-            $r = Deploy-ManagedSection $agentsMd $target
+            $r = Deploy-ManagedSection $agentsMd $target $PackName
             Write-Host ("{0}: {1} ({2})" -f $a.name, $target, $r)
         }
     }
