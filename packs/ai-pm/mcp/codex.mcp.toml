@@ -1,0 +1,9 @@
+# asp MCP 模板（Codex TOML 格式）— 由 asp 合并到 ~/.codex/config.toml
+# 格式依据 Codex 官方 config.toml 的 [mcp_servers.NAME] 定义；W2 实测后如字段有变在此更新
+[mcp_servers.asp-context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.asp-memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]

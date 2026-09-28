@@ -41,7 +41,9 @@ function Backup-File([string]$Path) {
 function Get-Adapters {
     $list = @()
     Get-ChildItem -Path $AdaptersDir -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object {
-        $list += (Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $a = (Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json)
+        if ($a.PSObject.Properties["enabled"] -and $a.enabled -eq $false) { return }
+        $list += $a
     }
     return ,$list
 }

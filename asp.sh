@@ -16,15 +16,15 @@ END_MARK="<!-- asp:end -->"
 
 py() { command -v python3 >/dev/null 2>&1 || { echo "[错误] 需要 python3（macOS/Linux 通常自带）"; exit 1; }; python3 "$@"; }
 
-expand_tilde() { case "$1" in "~") echo "$HOME";; "~/"*) echo "$HOME/${1#~/}";; *) echo "$1";; esac; }
-
-# 从适配器 JSON 输出 TSV: id|name|detect(逗号分隔)|skills_dir|instr_mode|instr_target|instr_filename|mcp_strategy|mcp_target|mcp_key|mcp_template|mcp_requires
+# read_adapters 的 python 段加 enabled 过滤
 read_adapters() {
   py - "$ROOT/adapters" <<'PYEOF'
 import json, sys, glob, os
 ad = sys.argv[1]
 for f in sorted(glob.glob(os.path.join(ad, "*.json"))):
     a = json.load(open(f, encoding="utf-8"))
+    if a.get("enabled") is False:
+        continue
     instr = a.get("instructions", {}); mcp = a.get("mcp", {})
     row = [a["id"], a["name"], ",".join(a.get("detect", [])),
            a.get("skills_dir", ""), instr.get("mode", ""), instr.get("target", ""),
@@ -33,6 +33,8 @@ for f in sorted(glob.glob(os.path.join(ad, "*.json"))):
     print("|".join(row))
 PYEOF
 }
+
+expand_tilde() { case "$1" in "~") echo "$HOME";; "~/"*) echo "$HOME/${1#~/}";; *) echo "$1";; esac; }
 
 detect_agents() {
   local found=""

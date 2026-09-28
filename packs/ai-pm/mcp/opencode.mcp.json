@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "asp-context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp"]
+    },
+    "asp-memory": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-memory"]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "codex",
+  "name": "Codex CLI",
+  "version": "0.1-dev",
+  "detect": ["~/.codex"],
+  "skills_dir": "~/.codex/skills",
+  "instructions": {
+    "target": "~/.codex/AGENTS.md",
+    "mode": "managed-section",
+    "note": "Codex 原生 AGENTS.md（全局+项目根均读，官方标准来源）。skills 目录支持情况 W2 实测；若无 skills 机制则该目录策略降级为仅文档参考"
+  },
+  "mcp": {
+    "strategy": "toml-managed",
+    "target": "~/.codex/config.toml",
+    "key": "mcp_servers",
+    "template": "codex.mcp.toml",
+    "requires": "npx",
+    "note": "TOML 格式 [mcp_servers.NAME] command/args/env；W2 实测写入与合并逻辑（TOML 合并比 JSON 复杂，暂定 managed 注释块）"
+  },
+  "smoke": { "cmd": "codex --version" }
+}

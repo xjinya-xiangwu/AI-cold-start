@@ -1,0 +1,21 @@
+{
+  "id": "opencode",
+  "name": "opencode",
+  "version": "0.1-dev",
+  "detect": ["~/.config/opencode"],
+  "skills_dir": "~/.config/opencode/skills",
+  "instructions": {
+    "mode": "workspace",
+    "filename": "AGENTS.md",
+    "note": "opencode 原生读项目根 AGENTS.md。全局指令文件（~/.config/opencode/AGENTS.md）待 W2 实测；确认后升级为 managed-section 全局部署"
+  },
+  "mcp": {
+    "strategy": "json-merge",
+    "target": "~/.config/opencode/opencode.json",
+    "key": "mcp",
+    "template": "opencode.mcp.json",
+    "requires": "npx",
+    "note": "opencode.json 的 mcp 字段格式 {NAME:{type:'local',command:[...]}} 与 Claude 不同，需专用模板 + 专用合并逻辑（W2 实现）"
+  },
+  "smoke": { "cmd": "opencode --version" }
+}

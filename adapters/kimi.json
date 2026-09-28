@@ -1,0 +1,22 @@
+{
+  "id": "kimi",
+  "name": "Kimi CLI / Kimiwork",
+  "version": "0.1-dev",
+  "detect": ["~/.kimi"],
+  "skills_dir": "~/.kimi/skills",
+  "instructions": {
+    "mode": "workspace",
+    "filename": "AGENTS.md",
+    "note": "Kimi CLI 支持 MCP（官方确认）。全局配置目录 ~/.kimi/ 为推测值，AGENTS.md 支持情况与 skills 机制 W2 实测后回填；未确认前本适配器默认不参与安装（enabled=false）"
+  },
+  "enabled": false,
+  "mcp": {
+    "strategy": "template-only",
+    "target": "~/.kimi/mcp.json",
+    "key": "mcpServers",
+    "template": "claude-code.mcp.json",
+    "requires": "npx",
+    "note": "格式与启用方式待实测，先以模板形式提供"
+  },
+  "smoke": { "cmd": "kimi --version" }
+}
