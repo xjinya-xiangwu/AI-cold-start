@@ -1,0 +1,21 @@
+{
+  "id": "claude-code",
+  "name": "Claude Code",
+  "version": "0.1",
+  "detect": ["~/.claude", "~/.claude.json"],
+  "skills_dir": "~/.claude/skills",
+  "instructions": {
+    "target": "~/.claude/CLAUDE.md",
+    "mode": "managed-section",
+    "note": "项目根 AGENTS.md 亦被 v2.1.277+ 读取；全局部署到 CLAUDE.md"
+  },
+  "mcp": {
+    "strategy": "merge",
+    "target": "~/.claude.json",
+    "key": "mcpServers",
+    "template": "claude-code.mcp.json",
+    "requires": "npx",
+    "note": "merge 仅新增键，不覆盖用户已有同名服务器"
+  },
+  "smoke": { "cmd": "claude --version" }
+}

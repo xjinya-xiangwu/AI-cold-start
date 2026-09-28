@@ -1,0 +1,26 @@
+{
+  "schema": "asp-registry/0.1",
+  "generated_at": "2026-09-28T00:00:00Z",
+  "note": "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
+  "mirrors": [
+    "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
+    "https://REPLACE-ACCOUNT.github.io/asp/registry"
+  ],
+  "packs": {
+    "ai-pm": {
+      "version": "0.0.1-dev",
+      "display_name": "AI 产品经理冷启动包",
+      "zip": "packs/ai-pm-0.0.1-dev.zip",
+      "sha256": "REPLACE-ON-RELEASE",
+      "skills_planned": ["prd-drafting", "prd-review", "competitor-analysis", "user-story", "metric-design", "ai-eval-design"],
+      "skills_included": [],
+      "mcp_defaults": ["context7", "sequential-thinking", "memory", "filesystem"],
+      "adapters_min_version": "0.1"
+    }
+  },
+  "adapters": {
+    "claude-code": { "version": "0.1", "changelog": "初始版" },
+    "zcode":       { "version": "0.1", "changelog": "初始版，mcp.servers 键实证" },
+    "dsh":         { "version": "0.1", "changelog": "初始版，AGENTS.md 原生支持实证；MCP template-only" }
+  }
+}

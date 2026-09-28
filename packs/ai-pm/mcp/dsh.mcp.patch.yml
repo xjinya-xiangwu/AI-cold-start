@@ -1,0 +1,13 @@
+# DSH MCP 启用模板（手动启用，DSH 默认不启用 MCP —— 沙箱安全设计）
+# 启用步骤：
+# 1. 将本片段按 DSH patch 机制合并到 ~/.dsh/cordis.patch.yml（详见官方文档 patch 层叠规则）
+# 2. dsh 重启后用 /mcp 或等价命令确认服务器已连接
+# 注意：每条 MCP 服务器命令都是沙箱外受信任可执行代码，仅添加你信任的来源
+mcp:
+  servers:
+    asp-context7:
+      command: npx
+      args: ["-y", "@upstash/context7-mcp"]
+    asp-memory:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-memory"]

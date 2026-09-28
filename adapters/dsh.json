@@ -1,0 +1,21 @@
+{
+  "id": "dsh",
+  "name": "DeepSeek Harness",
+  "version": "0.1",
+  "detect": ["~/.dsh"],
+  "skills_dir": "~/.dsh/skills",
+  "instructions": {
+    "mode": "workspace",
+    "filename": "AGENTS.md",
+    "note": "DSH 原生加载 workspace 根 AGENTS.md（官方确认）。通过 'asp agents <项目目录>' 部署"
+  },
+  "mcp": {
+    "strategy": "template-only",
+    "target": "~/.dsh/cordis.patch.yml",
+    "key": "patch",
+    "template": "dsh.mcp.patch.yml",
+    "requires": "",
+    "note": "DSH 默认不启用 MCP（沙箱安全设计，官方确认）——只提供 patch 片段模板 + README 启用步骤，不自动写入"
+  },
+  "smoke": { "cmd": "dsh --version" }
+}

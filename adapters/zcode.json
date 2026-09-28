@@ -1,0 +1,21 @@
+{
+  "id": "zcode",
+  "name": "Zcode",
+  "version": "0.1",
+  "detect": ["~/.zcode"],
+  "skills_dir": "~/.zcode/skills",
+  "instructions": {
+    "mode": "workspace",
+    "filename": "AGENTS.md",
+    "note": "Zcode 读取工作区根 AGENTS.md（agentsMd，实证）。通过 'asp agents <项目目录>' 部署；全局层 W2 实测后可能补充"
+  },
+  "mcp": {
+    "strategy": "merge",
+    "target": "~/.zcode/cli/config.json",
+    "key": "mcp.servers",
+    "template": "zcode.mcp.json",
+    "requires": "npx",
+    "note": "实证格式：{mcp:{servers:{name:{type:'stdio',command,env,args}}}}；merge 仅新增键"
+  },
+  "smoke": { "cmd": "zcode --version" }
+}
