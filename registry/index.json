@@ -1,6 +1,6 @@
 {
     "schema":  "asp-registry/0.1",
-    "generated_at":  "2026-09-28T13:22:35Z",
+    "generated_at":  "2026-09-28T14:13:57Z",
     "note":  "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
     "mirrors":  [
                     "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
@@ -8,10 +8,10 @@
                 ],
     "packs":  {
                   "ai-pm":  {
-                                "version":  "v0.2.0",
+                                "version":  "v0.3.0",
                                 "display_name":  "AI 产品经理冷启动包",
-                                "zip":  "packs/ai-pm-v0.2.0.zip",
-                                "sha256":  "f34ecdf5d39e830d3a2c633bad80fcd324bed2c285fb0a622e58762e403fdf9e",
+                                "zip":  "packs/ai-pm-v0.3.0.zip",
+                                "sha256":  "7c838b91ee3a8d0a615f06828d0c5705b59ff821b88ca39cb778e3490c1cba9f",
                                 "skills_included":  [
                                                         "prd-drafting",
                                                         "prd-review",
