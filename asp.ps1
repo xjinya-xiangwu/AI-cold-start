@@ -209,7 +209,7 @@ function Invoke-Install([string]$PackName) {
 
     Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
     $answer = Read-Host "[确认] 全部安装? (Y/n)"
-    if ($answer -ne "" -and $answer.ToLower() -ne "y") {
+    if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
         Write-Host "已取消。"
         exit 0
     }

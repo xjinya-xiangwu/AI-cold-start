@@ -1,4 +1,4 @@
-# AI 产品经理冷启动包（0.3.0）
+# AI 产品经理冷启动包（0.4.0）
 
 装完后第一件事（示例指令）：
 
@@ -6,23 +6,25 @@
 2. `用 prd-drafting 帮我起草"企业知识库助手"的 PRD 框架`
 3. `用 feature-prioritization 把这 20 条需求按 RICE 排序，降级项给重新上榜条件`
 4. `用 tech-spec-review 给我六问清单，明天评审开发的技术方案`
-5. `用 okr-planning 帮团队写下季度 OKR，KR 带基线和置信度`
-6. `用 meeting-to-decisions 把这段会议记录整理成决议和行动项`
+5. `用 bug-triage 给这两条线上问题定级，给止血方案`
+6. `用 product-reporting 把这周进展写成一页周报`
+7. `用 feedback-triage 整理这 50 条用户反馈，分诊出值得做的需求`
+8. `用 meeting-to-decisions 把这段会议记录整理成决议和行动项`
 
 ## 内容清单
 
-### skills（26 个，全自产，覆盖 PM 全工作流）
+### skills（31 个：29 自产 + 2 个基于开源许可项目改造，见 THIRD-PARTY-NOTICES.md）
 
 | 阶段 | skills |
 |---|---|
 | 思路与决策 | idea-grilling（决策树拷问） · decision-premortem（失败预演+可逆性） · assumption-audit（假设审计） |
-| 发现与洞察 | user-research-interview · market-sizing · competitor-analysis |
-| 定义与设计 | prd-drafting · prd-review · user-story · feature-prioritization · minimal-solution（最简梯子） |
+| 发现与洞察 | user-research-interview · market-sizing · competitor-analysis · feedback-triage（反馈分诊/需求池） |
+| 定义与设计 | prd-drafting · prd-review · user-story · feature-prioritization · minimal-solution（最简梯子） · mermaid-diagrams（PRD 配图） |
 | 数据与实验 | metric-design · experiment-design · data-insight |
 | AI 产品专项 | ai-eval-design · ai-ux-patterns |
 | 规划与立项 | okr-planning · project-kickoff · risk-register · stakeholder-mapping |
-| 研发协作 | tech-spec-review · dev-handoff · launch-readiness |
-| 战略与交付 | roadmap-planning · meeting-to-decisions · release-notes |
+| 研发协作 | tech-spec-review · dev-handoff · launch-readiness · bug-triage（P0-P3 分级响应） · post-mortem（项目/事故复盘） |
+| 战略与交付 | roadmap-planning · meeting-to-decisions · release-notes · product-reporting（四段式汇报） |
 
 ### AGENTS.md
 

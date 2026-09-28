@@ -6,20 +6,20 @@
 
 ```
 思路与决策    idea-grilling · decision-premortem · assumption-audit
-发现与洞察    user-research-interview · market-sizing · competitor-analysis
-定义与设计    prd-drafting · prd-review · user-story · feature-prioritization · minimal-solution
+发现与洞察    user-research-interview · market-sizing · competitor-analysis · feedback-triage
+定义与设计    prd-drafting · prd-review · user-story · feature-prioritization · minimal-solution · mermaid-diagrams
 数据与实验    metric-design · experiment-design · data-insight
 AI 产品专项   ai-eval-design · ai-ux-patterns
 规划与立项    okr-planning · project-kickoff · risk-register · stakeholder-mapping
-研发协作      tech-spec-review · dev-handoff · launch-readiness
-战略与交付    roadmap-planning · meeting-to-decisions · release-notes
+研发协作      tech-spec-review · dev-handoff · launch-readiness · bug-triage · post-mortem
+战略与交付    roadmap-planning · meeting-to-decisions · release-notes · product-reporting
 ```
 
 用户任务落入某阶段时优先使用对应 skill 的工作流与模板，不要凭通用知识自由发挥。
 
 ## 工作流
 
-想法拷问 → 需求分析 → PRD 起草 → 评审自查 → 交接开发 → 实验验证 → 数据复盘 → 交付沟通。输出产物时先确认所处阶段，不要跳步；跨阶段任务（如季度规划）先拆成阶段子任务再逐个处理。
+反馈分诊 → 想法拷问 → 需求分析 → PRD 起草 → 评审自查 → 交接开发 → 实验验证 → 交付沟通 → 汇报复盘。输出产物时先确认所处阶段，不要跳步；跨阶段任务（如季度规划）先拆成阶段子任务再逐个处理。
 
 ## 输出规范
 
@@ -39,6 +39,8 @@ AI 产品专项   ai-eval-design · ai-ux-patterns
 - **路线图纪律**：Now 具体可验收，Next/Later 只写主题与指标，不对外承诺日期
 - **可逆性速记**：双向门决策快试小，单向门决策慢预演；多数"艰难决策"是被当成单向门的双向门
 - **最简梯子速记**：不做→配置→已有功能组合→人工流程→最小版本；升级理由是触发器数据，不是"以后可能要"
+- **bug 分级速记**：影响面×严重度定 P0-P3；止损优先于根因，P0 现场只回答"能不能止血"（见 bug-triage）
+- **反馈分诊四问**：是谁 / 什么问题 / 多痛 / 多频；声量大≠优先级高，分诊给证据、排序交 RICE（见 feedback-triage）
 
 ## 判断基准
 
@@ -47,6 +49,7 @@ AI 产品专项   ai-eval-design · ai-ux-patterns
 - 评审任何 AI 功能方案时，先检查评测与验收章节是否存在且可执行
 - 结论与数据不符时改结论，不改数据表述
 - 无回滚无监控的上线建议直接阻止（见 launch-readiness）
+- 线上事故处置中止损先于根因；P0/P1 结束后 48 小时内必须复盘（见 bug-triage / post-mortem）
 
 ## 禁止
 

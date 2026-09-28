@@ -1,6 +1,6 @@
 {
     "schema":  "asp-registry/0.1",
-    "generated_at":  "2026-09-28T14:13:57Z",
+    "generated_at":  "2026-09-28T16:04:00Z",
     "note":  "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
     "mirrors":  [
                     "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
@@ -8,22 +8,48 @@
                 ],
     "packs":  {
                   "ai-pm":  {
-                                "version":  "v0.3.0",
+                                "version":  "v0.4.0",
                                 "display_name":  "AI 产品经理冷启动包",
-                                "zip":  "packs/ai-pm-v0.3.0.zip",
-                                "sha256":  "7c838b91ee3a8d0a615f06828d0c5705b59ff821b88ca39cb778e3490c1cba9f",
+                                "zip":  "packs/ai-pm-v0.4.0.zip",
+                                "sha256":  "b4e5887ac8fc802e6042606467e26318d78dec30517e25f4b0927899ae49a6c2",
                                 "skills_included":  [
                                                         "prd-drafting",
                                                         "prd-review",
-                                                        "competitor-analysis",
                                                         "user-story",
+                                                        "feature-prioritization",
+                                                        "minimal-solution",
+                                                        "user-research-interview",
+                                                        "market-sizing",
+                                                        "competitor-analysis",
+                                                        "feedback-triage",
                                                         "metric-design",
-                                                        "ai-eval-design"
+                                                        "experiment-design",
+                                                        "data-insight",
+                                                        "mermaid-diagrams",
+                                                        "ai-eval-design",
+                                                        "ai-ux-patterns",
+                                                        "idea-grilling",
+                                                        "decision-premortem",
+                                                        "assumption-audit",
+                                                        "okr-planning",
+                                                        "project-kickoff",
+                                                        "risk-register",
+                                                        "stakeholder-mapping",
+                                                        "tech-spec-review",
+                                                        "dev-handoff",
+                                                        "launch-readiness",
+                                                        "bug-triage",
+                                                        "post-mortem",
+                                                        "roadmap-planning",
+                                                        "meeting-to-decisions",
+                                                        "release-notes",
+                                                        "product-reporting"
                                                     ],
                                 "prompts_count":  42,
                                 "mcp_defaults":  [
                                                      "context7",
-                                                     "memory"
+                                                     "memory",
+                                                     "sequential-thinking"
                                                  ],
                                 "adapters_min_version":  "0.1"
                             }

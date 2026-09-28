@@ -1,7 +1,7 @@
-# PM 全生命周期任务 × skills 覆盖映射（ai-pm v0.3.0）
+# PM 全生命周期任务 × skills 覆盖映射（ai-pm v0.4.0）
 
 > 用途：扩充路线图的依据。✅ 有 skill 覆盖 / 🔶 部分覆盖（注明位置）/ ❌ 未覆盖。
-> 统计：51 项任务，✅ 26 项（51%）、🔶 9 项、❌ 16 项。P0 缺口 4 个（见文末）。
+> 统计：53 项任务，✅ 31 项（59%）、🔶 10 项、❌ 12 项。v0.4.0 落地 5 个新 skill（product-reporting / post-mortem / bug-triage / feedback-triage / mermaid-diagrams），6 项任务覆盖升级。
 
 ## ① 战略与机会
 
@@ -22,7 +22,7 @@
 | 8 | 问卷调研 | ❌ | — |
 | 9 | 可用性测试 | ❌ | — |
 | 10 | 用户画像与分层 | ❌ | —（访谈纪要提供素材，无专门 skill） |
-| 11 | 需求池管理（多渠道反馈→去重→分级） | ❌ | — |
+| 11 | 需求池管理（多渠道反馈→去重→分级） | ✅ | feedback-triage |
 | 12 | 数据驱动的机会发现 | ✅ | data-insight |
 
 ## ③ 定义与设计
@@ -35,7 +35,7 @@
 | 16 | 用户故事与验收标准 | ✅ | user-story |
 | 17 | 优先级排序 | ✅ | feature-prioritization |
 | 18 | 方案最简化 | ✅ | minimal-solution |
-| 19 | 流程图/原型/线框 | ❌ | —（mermaid skill 为 P0 候选） |
+| 19 | 流程图/原型/线框 | 🔶 | mermaid-diagrams（流程/状态/时序/ER；原型线框无） |
 | 20 | AI 功能交互设计 | ✅ | ai-ux-patterns |
 | 21 | AI 评测设计 | ✅ | ai-eval-design |
 | 22 | 埋点设计 | 🔶 | dev-handoff 第 4 件（仅交接形态，无设计方法论） |
@@ -59,7 +59,7 @@
 | 30 | 需求变更管理 | 🔶 | dev-handoff 变更纪律（有纪律无流程工具） |
 | 31 | 迭代跟进与进度管理 | 🔶 | meeting-to-decisions（会议侧）；燃尽/进度跟踪无 |
 | 32 | 测试用例评审与 UAT | ❌ | —（launch-readiness 只查结果） |
-| 33 | bug 分级与响应 | ❌ | —（launch-readiness 提及未展开） |
+| 33 | bug 分级与响应 | ✅ | bug-triage |
 | 34 | 联调与提测管理 | 🔶 | dev-handoff 第 6 件 |
 
 ## ⑥ 发布
@@ -79,7 +79,7 @@
 | 40 | 核心指标监控看板 | 🔶 | metric-design（口径）＋看板设计无 |
 | 41 | A/B 实验设计与解读 | ✅ | experiment-design |
 | 42 | 数据复盘 | ✅ | data-insight |
-| 43 | 用户反馈闭环（bad case→需求池） | ❌ | —（prd-drafting 第 9 章提及机制，无执行 skill） |
+| 43 | 用户反馈闭环（bad case→需求池） | ✅ | feedback-triage |
 | 44 | 增长策略与增长实验 | ❌ | — |
 | 45 | 用户生命周期运营（留存/召回） | ❌ | —（建议划归运营域，明示边界） |
 
@@ -88,7 +88,7 @@
 | # | 任务 | 覆盖 | 对应 |
 |---|---|---|---|
 | 46 | 会议纪要与决议跟踪 | ✅ | meeting-to-decisions |
-| 47 | 向上汇报（周报/月报/季度汇报） | ❌ | —（高频刚需缺口） |
+| 47 | 向上汇报（周报/月报/季度汇报） | ✅ | product-reporting |
 | 48 | 产品演示/Demo 材料 | ❌ | — |
 | 49 | 跨团队协调 | ✅ | stakeholder-mapping |
 | 50 | 预期管理与坏消息沟通 | 🔶 | stakeholder-mapping（策略侧无话术工具） |
@@ -97,7 +97,7 @@
 
 | # | 任务 | 覆盖 | 对应 |
 |---|---|---|---|
-| 51 | 项目/事故复盘 | ❌ | —（launch-readiness 仅 48h 复盘） |
+| 51 | 项目/事故复盘 | ✅ | post-mortem |
 | 52 | 版本与技术债管理 | 🔶 | release-notes（版本侧） |
 | 53 | 产品退市/下线 | ❌ | — |
 
@@ -119,12 +119,13 @@
 > **License 红线：deanpeters/Product-Manager-Skills（7.1k★ 最大竞品）= CC BY-NC-SA 非商业，不可采集，仅竞品参考**；Digidai/meshcode/growth-lifecycle 等同属不可采集。
 > bug 分级与需求池分诊在 GitHub 无产品向命中，走自产。
 
-### P0（PM 高频刚需，建议 v0.4.0）
+### P0（PM 高频刚需——✅ 已随 v0.4.0 全部落地）
 
 1. **feedback-triage 需求池管理**：多渠道反馈（客服/群/应用商店）→去重→分级→转需求，与 feature-prioritization 衔接（#11/#43）
 2. **product-reporting 产品汇报**：周报/月报/季度汇报结构化生成（进展+数据+风险+求助四段），与 data-insight 衔接（#47）
 3. **bug-triage 线上问题分级响应**：P0-P3 定义、响应时限、止损优先于根因（#33）
 4. **post-mortem 复盘**：项目复盘+事故复盘（时间线/根因/无指责/改进项跟踪）（#51）
+5. **mermaid-diagrams 图表**：流程/状态/时序图零依赖出图，#19 升为部分覆盖（采集自 MIT/Apache 源改造的明细见 packs/ai-pm/THIRD-PARTY-NOTICES.md）
 
 ### P1
 
