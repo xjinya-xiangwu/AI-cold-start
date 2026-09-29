@@ -1,6 +1,6 @@
 {
     "schema":  "asp-registry/0.2",
-    "generated_at":  "2026-09-29T16:52:24Z",
+    "generated_at":  "2026-09-29T16:57:59Z",
     "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。GitHub Pages 主源已上线（zip 随仓库分发 registry/packs/）；OSS 开通后替换 mirrors[1] 并换回首位。",
     "mirrors":  [
                     "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
@@ -51,7 +51,7 @@
                                                 ],
                                "prompts_count":  11,
                                "zip":  "packs/base-v0.5.1.zip",
-                               "sha256":  "542b67746fb244da85465cf3658b78404a8f032333ab2edbec0451789c9b5177"
+                               "sha256":  "1cc6907c32f8bc997567c195b3e3da96fa34c7a327aa680a537d70a4ee113ffe"
                            },
                   "ai-pm":  {
                                 "version":  "v0.5.1",
@@ -85,7 +85,7 @@
                                                       },
                                 "prompts_count":  31,
                                 "zip":  "packs/ai-pm-v0.5.1.zip",
-                                "sha256":  "26492f065b45c1f5c60804338d2ff220098b342873d6d9fea7a416a9f24033dc"
+                                "sha256":  "e1f87899743dc13377fdf572f46e3f52ae92331552b965f3e533f71577c07c3b"
                             }
               },
     "adapters":  {

@@ -322,7 +322,8 @@ function Invoke-Update([string]$PackName) {
     foreach ($m in $mirrors) {
         try {
             Write-Host ("[更新] 尝试源: {0}" -f $m)
-            $resp = Invoke-WebRequest -Uri ($m.TrimEnd('/') + "/index.json") -TimeoutSec 3 -UseBasicParsing
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            $resp = Invoke-WebRequest -Uri ($m.TrimEnd('/') + "/index.json") -TimeoutSec 10 -UseBasicParsing
             $idx = $resp.Content | ConvertFrom-Json
             break
         } catch { Write-Host "  源不可达，切换下一个..." -ForegroundColor DarkGray }
@@ -340,7 +341,7 @@ function Invoke-Update([string]$PackName) {
     $zipRel = $idx.packs.$PackName.zip
     $zipUrl = ($idx.mirrors[0].TrimEnd('/') + "/" + $zipRel)
     $tmpZip = Join-Path $env:TEMP ("asp-" + [guid]::NewGuid().ToString("N") + ".zip")
-    Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -UseBasicParsing
+    Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -TimeoutSec 60 -UseBasicParsing
     $hash = (Get-FileHash $tmpZip -Algorithm SHA256).Hash.ToLower()
     if ($hash -ne $idx.packs.$PackName.sha256.ToLower()) {
         Write-Host "[错误] 哈希校验失败，已中止。" -ForegroundColor Red; exit 1
