@@ -208,10 +208,14 @@ function Invoke-Install([string]$PackName) {
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
 
     Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
-    $answer = Read-Host "[确认] 全部安装? (Y/n)"
-    if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
-        Write-Host "已取消。"
-        exit 0
+    # 多包依赖链安装时只确认一次（v0.5.0 分层）
+    if (-not $script:AspConfirmed) {
+        $answer = Read-Host "[确认] 全部安装? (Y/n)"
+        if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
+            Write-Host "已取消。"
+            exit 0
+        }
+        $script:AspConfirmed = $true
     }
 
     $report = @()
@@ -242,8 +246,9 @@ function Invoke-Install([string]$PackName) {
             Write-Host ("    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署" -f $a.name)
         }
 
-        # 3) MCP
-        if ($a.mcp.strategy -eq "merge") {
+        # 3) MCP（专业包无 mcp 目录时跳过，MCP 归属 base 包）
+        $hasMcp = Test-Path (Join-Path $packDir "mcp")
+        if ($a.mcp.strategy -eq "merge" -and $hasMcp) {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires $a.id
             if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
@@ -252,7 +257,7 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
         } elseif ($a.mcp.strategy -eq "template-only") {
             Write-Host "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录" -ForegroundColor DarkGray
-        } elseif ($a.mcp.strategy -eq "toml-managed") {
+        } elseif ($a.mcp.strategy -eq "toml-managed" -and $hasMcp) {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-TomlManaged $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.requires $a.id
             if ($r.updated)               { Write-Host "    MCP 托管块已更新（模板内 asp-* 服务器）" }
@@ -262,13 +267,16 @@ function Invoke-Install([string]$PackName) {
         }
     }
 
-    # 写状态
-    $state = @{ pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
+    # 写状态（v0.5.0：packs 记录为数组，依赖链多次安装累加）
     if (Test-Path $StateFile) {
         $old = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        $state.version = if ($old.version) { $old.version } else { "dev" }
+        $packs = @($old.packs)
+        if ($packs -notcontains $PackName) { $packs += $PackName }
+        $state = @{ packs = $packs; pack = $PackName; version = if ($old.version) { $old.version } else { "dev" }; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
+    } else {
+        $state = @{ packs = @($PackName); pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
     }
-    $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding UTF8
+    $state | ConvertTo-Json | ForEach-Object { Write-Utf8NoBom $StateFile $_ }
 
     Write-Host ""
     Write-Host "=======================================" -ForegroundColor Green
@@ -358,15 +366,48 @@ function Invoke-Update([string]$PackName) {
     Invoke-Install $PackName
 }
 
+# ---------- 包依赖解析（v0.5.0 分层：专业包依赖 base）----------
+function Resolve-PackDeps([string]$PackName) {
+    # 返回安装顺序列表：依赖在前，目标在后
+    $depsFile = Join-Path $Root ("packs/" + $PackName + "/deps.json")
+    $chain = @()
+    if (Test-Path $depsFile) {
+        $deps = (Get-Content $depsFile -Raw -Encoding UTF8 | ConvertFrom-Json).requires
+        foreach ($d in @($deps)) { $chain += $d }
+    }
+    $chain += $PackName
+    return ,$chain
+}
+
 # ---------- 主分发 ----------
 switch ($Command.ToLower()) {
-    "install" { if (-not $Pack) { $Pack = "ai-pm" }; Invoke-Install $Pack }
-    "update"  { if (-not $Pack) { if (Test-Path $StateFile) { $Pack = (Get-Content $StateFile -Raw | ConvertFrom-Json).pack } else { $Pack = "ai-pm" } }; Invoke-Update $Pack }
+    "install" {
+        if (-not $Pack) { $Pack = "base" }
+        $chain = Resolve-PackDeps $Pack
+        if ($chain.Count -gt 1) {
+            Write-Host ("[分层] {0} 包含基础包，将一并安装: {1}" -f $Pack, ($chain -join " -> ")) -ForegroundColor Cyan
+        }
+        foreach ($p in $chain) { Invoke-Install $p }
+    }
+    "update"  {
+        if (-not $Pack) {
+            if (Test-Path $StateFile) { $Pack = (Get-Content $StateFile -Raw | ConvertFrom-Json).pack } else { $Pack = "base" }
+        }
+        $chain = Resolve-PackDeps $Pack
+        foreach ($p in $chain) { Invoke-Update $p }
+    }
     "detect"  { $agents = Find-Agents; if ($agents.Count -eq 0) { Show-Guide } else { $agents | ForEach-Object { Write-Host ("  {0,-14} {1}" -f $_.name, $_.id) } } }
     "agents"  { Invoke-Agents $Pack $TargetDir }
+    "list"    {
+        Write-Host "可用包:"
+        Get-ChildItem (Join-Path $Root "packs") -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $n = (Get-ChildItem (Join-Path $_.FullName "skills") -Directory -ErrorAction SilentlyContinue | Measure-Object).Count
+            Write-Host ("  {0,-8} {1,3} skills" -f $_.Name, $n)
+        }
+    }
     "status"  {
         if (Test-Path $StateFile) { Get-Content $StateFile -Raw -Encoding UTF8 }
         else { Write-Host "尚未安装任何包。" }
     }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|status] [pack]"; exit 1 }
+    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status] [pack]"; exit 1 }
 }

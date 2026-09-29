@@ -1,10 +1,21 @@
 # AI 冷启动包 · Agent Starter Pack
 
-> 把一套成型的「专家工作方法」——31 个实战 skills + 角色工作流 AGENTS.md + 零 key MCP 配置 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。
+> 把一套成型的「专家工作方法」——**19 个通用 skills（基础层）+ 12 个 PM 专业 skills** + 角色工作流 AGENTS.md + 零 key MCP 配置 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。
 
-![version](https://img.shields.io/badge/ai--pm-v0.4.0-2563EB) ![skills](https://img.shields.io/badge/skills-31%20%C3%97%208%E7%B1%BB-059669) ![agents](https://img.shields.io/badge/agents-7-F59E0B) ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20mac%2FLinux-8B5CF6) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
+![version](https://img.shields.io/badge/v0.5.0--tiered-2563EB) ![base](https://img.shields.io/badge/基础包--19%20skills%20%C2%A510-059669) ![ai--pm](https://img.shields.io/badge/PM专业包--12%20skills%20%C2%A519.9-8B5CF6) ![agents](https://img.shields.io/badge/agents-7-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
 
 **问题不在 AI 不会聊天，在于它没有方法。** 同样一句「帮我写个 PRD」，裸模型给一堆正确的废话；装包后先问你 4 个关键问题，再按 12 章专业模板出稿——AI 特有章节（能力边界 / 异常流 / 评测验收 / 人机协同）一个不漏。
+
+## 分层定价（v0.5.0 起）
+
+| 层 | 价格 | 内容 | 适合谁 |
+|---|---|---|---|
+| **基础包 `base`** | **¥10** | 19 个跨职业通用 skills（提效 4 / 质量 4 / 规划 7 / 通用工具 4）+ 3 个零 key MCP + 11 条通用指令 | 任何想让 AI 按方法干活的人：开发者 / 运营 / 学生 / 自由职业 |
+| **PM 专业包 `ai-pm`** | **¥19.9** | 12 个 PM 专属 skills（洞察 4 / 设计 4 / AI 专项 2 / 战略 2）+ 31 条 PM 指令 + 九环 PM 工作流 | 产品经理 / 转岗 PM / AI 产品从业者 |
+| **PM 完整版（两层全装）** | **¥29.9** | 31 skills + 42 指令全套 | 同上（买 ai-pm 自动含 base） |
+
+- 基础层被**所有专业包复用**：后续 AI 开发者包、内容创作包 = ¥10 基础层 + 各自 ¥19.9 专业层
+- 安装 `ai-pm` 时自动先装 `base`（依赖内置，一次完成）；只买基础包的用户拿不到专业层内容（交付 zip 物理隔离）
 
 | 你对 AI 说 | 装包前 | 装包后 |
 |---|---|---|
@@ -72,27 +83,30 @@ bash asp.sh install
 
 > 「写入实证」= 安装/幂等/配置保留已真机验证，agent 侧首开冒烟由各端用户确认；实测环境 Win10 / PowerShell 5.1。
 
-## 首发内容：AI 产品经理包（v0.4.0）
+## 内容清单（v0.5.0 分层）
 
-**31 skills × 8 大类**，覆盖 PM 全生命周期：
+### 基础包 base（19 skills，跨职业通用）
 
 | 类别 | skills |
 |---|---|
-| 思路与决策 | idea-grilling · decision-premortem · assumption-audit |
+| 提升开发效率 | dev-handoff · tech-spec-review · release-notes · mermaid-diagrams |
+| 保障质量 | bug-triage · post-mortem · launch-readiness · decision-premortem |
+| 规划类 | idea-grilling · assumption-audit · okr-planning · project-kickoff · risk-register · stakeholder-mapping · minimal-solution |
+| 通用工具 | meeting-to-decisions · data-insight · experiment-design · metric-design |
+
+随包：通用版 AGENTS.md（想法拷问→规划→协作→质量→复盘 五环）+ 通用 prompts × 11 + **3 个零 key MCP**（asp-context7 / asp-memory / asp-sequential-thinking；key 类见 `mcp/optional-mcp.md`）
+
+### PM 专业包 ai-pm（12 skills，PM 专属）
+
+| 类别 | skills |
+|---|---|
 | 发现与洞察 | user-research-interview · market-sizing · competitor-analysis · feedback-triage |
-| 定义与设计 | prd-drafting · prd-review · user-story · feature-prioritization · minimal-solution · mermaid-diagrams |
-| 数据与实验 | metric-design · experiment-design · data-insight |
+| 定义与设计 | prd-drafting · prd-review · user-story · feature-prioritization |
 | AI 产品专项 | ai-eval-design · ai-ux-patterns |
-| 规划与立项 | okr-planning · project-kickoff · risk-register · stakeholder-mapping |
-| 研发协作 | tech-spec-review · dev-handoff · launch-readiness · bug-triage · post-mortem |
-| 战略与交付 | roadmap-planning · meeting-to-decisions · release-notes · product-reporting |
+| 战略与交付 | roadmap-planning · product-reporting |
 
-随包附带：
-
-- **AGENTS.md**：AI PM 角色工作流（反馈分诊 → 拷问 → PRD → 交接 → 实验 → 汇报复盘 九环）+ 知识基准速记层
-- **prompts × 42**：需求澄清 10 / PRD 写作 8 / 评审决策 8 / 数据分析 8 / 面试练习 8
-- **MCP 默认 3 个（全零 key）**：asp-context7（查最新文档）· asp-memory（跨会话记忆）· asp-sequential-thinking（深度推理）；Brave / GitHub / Notion 等 key 类服务见 `mcp/optional-mcp.md` 注册引导
-- **覆盖率 59%**：53 项 PM 全生命周期任务映射（✅31 / 🔶10 / ❌12），见 [packs/ai-pm/COVERAGE.md](packs/ai-pm/COVERAGE.md)
+随包：AI PM 两层版 AGENTS.md（31 skills 地图 + 九环工作流 + 知识基准）+ PM prompts × 31
+覆盖率 **59%**：53 项 PM 全生命周期任务映射（✅31 / 🔶10 / ❌12），见 [packs/ai-pm/COVERAGE.md](packs/ai-pm/COVERAGE.md)
 
 ## 更新机制
 
@@ -107,19 +121,24 @@ powershell -ExecutionPolicy Bypass -File asp.ps1 update
 
 ```
 AI-cold-start/
-├── asp.ps1 / asp.sh        # 安装/更新器（零外部依赖）
+├── asp.ps1 / asp.sh        # 安装/更新器（零外部依赖，支持包依赖链）
 ├── setup.bat / setup.command / update.bat
 ├── adapters/               # 各 agent 适配器（探测路径/部署策略）
-├── packs/ai-pm/            # AI 产品经理包
-│   ├── skills/             # 31 个 skill（每目录一个 SKILL.md）
-│   ├── prompts/prompts.md  # 42 条即用指令
-│   ├── mcp/                # MCP 模板 + optional-mcp.md 注册引导
-│   ├── AGENTS.md           # 角色工作流与知识基准
-│   ├── COVERAGE.md         # 53 项任务覆盖映射
-│   └── THIRD-PARTY-NOTICES.md
-├── registry/index.json     # 周更源索引（版本/哈希/mirrors）
+├── packs/
+│   ├── base/               # 基础包（¥10，19 skills 跨职业通用）
+│   │   ├── skills/
+│   │   ├── prompts/        # 通用指令 ×11
+│   │   ├── mcp/            # MCP 模板 + optional-mcp.md（MCP 归属基础层）
+│   │   └── AGENTS.md       # 通用工作流
+│   └── ai-pm/              # PM 专业包（¥19.9，12 skills，requires base）
+│       ├── skills/
+│       ├── prompts/        # PM 指令 ×31
+│       ├── AGENTS.md       # 两层版工作流与知识基准
+│       ├── COVERAGE.md     # 53 项任务覆盖映射
+│       └── THIRD-PARTY-NOTICES.md
+├── registry/index.json     # 周更源索引（两包版本/哈希/mirrors）
 ├── collector/              # 周更抓源脚本 + 候选/调研报告
-├── scripts/                # build-release / make-lite
+├── scripts/                # build-release（按包过滤打包）/ make-lite
 ├── docs/                   # 开发/托管/商品文案
 └── UPDATES.md              # 更新日志
 ```
@@ -140,12 +159,12 @@ AI-cold-start/
 
 ## 路线图
 
-- [ ] AI 开发者包 / AI 内容创作包（第二、三个 SKU）
+- [ ] AI 开发者包 / AI 内容创作包（¥10 基础层 + 各自专业层 ¥19.9，复用 base）
 - [ ] P1 skills：问卷设计 / UAT 验收 / 用户画像 / 增长实验 / 演示材料 / 竞品监控 / 定价设计
-- [ ] 免费 lite 版拆分（make-lite）
+- [ ] 免费 lite 版拆分（make-lite，适配分层结构）
 - [ ] mac/linux `asp.sh` 端到端实测；更多 agent 适配（Gemini CLI / Qwen Code 等）
 - [ ] registry 双源托管上线（阿里云 OSS 主源 + GitHub Pages 备源，见 [docs/HOSTING.md](docs/HOSTING.md)）
 
 ## 更新日志
 
-见 [UPDATES.md](UPDATES.md) —— v0.1.0（6 skills）→ v0.2.0（15）→ v0.3.0（26）→ **v0.4.0（31，2026-09-28）**。
+见 [UPDATES.md](UPDATES.md) —— v0.1.0（6 skills）→ v0.2.0（15）→ v0.3.0（26）→ v0.4.0（31）→ **v0.5.0（分层：base 19 + ai-pm 12，2026-09-29）**。

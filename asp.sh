@@ -110,7 +110,7 @@ show_guide() {
 }
 
 do_install() {
-  local pack="${1:-ai-pm}"
+  local pack="${1:-base}"
   local packdir="$ROOT/packs/$pack"
   [ -d "$packdir" ] || { echo "[错误] 不存在包: $pack"; exit 1; }
   echo "[探测] 扫描本机 AI agent..."
@@ -118,8 +118,12 @@ do_install() {
   [ -z "$found" ] && { show_guide; exit 0; }
   local names; names="$(echo "$found" | awk -F'|' '{printf "%s  ", $2}')"
   echo "[探测] 发现: $names"
-  read -r -p "[确认] 全部安装? (Y/n) " ans
-  [ -n "$ans" ] && [ "${ans,,}" != "y" ] && { echo "已取消。"; exit 0; }
+  # 多包依赖链安装时只确认一次（v0.5.0 分层）
+  if [ -z "${ASP_CONFIRMED:-}" ]; then
+    read -r -p "[确认] 全部安装? (Y/n) " ans
+    [ -n "$ans" ] && [ "${ans,,}" != "y" ] && { echo "已取消。"; exit 0; }
+    ASP_CONFIRMED=1
+  fi
   local installed_agents=""
   while IFS='|' read -r id name skills_dir imode itarget ifname mstrat mtarget mkey mtmpl mreq; do
     [ -z "$id" ] && continue
@@ -135,17 +139,27 @@ do_install() {
     elif [ "$imode" = "workspace" ]; then
       echo "    AGENTS.md: workspace 级，稍后运行 './asp.sh agents <项目目录>' 部署"
     fi
-    if [ "$mstrat" = "merge" ]; then
+    if [ "$mstrat" = "merge" ] && [ -d "$packdir/mcp" ]; then
       r=$(merge_mcp "$packdir/mcp/$mtmpl" "$(expand_tilde "$mtarget")" "$mkey" "$mreq")
       echo "    MCP: $r"
+    elif [ "$mstrat" = "merge" ]; then
+      :  # 专业包无 mcp 目录（MCP 归属 base 包），跳过
     elif [ "$mstrat" = "template-only" ]; then
       echo "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录"
     fi
     installed_agents+="$id "
   done <<< "$found"
-  cat > "$STATE_FILE" <<EOF
-{"pack": "$pack", "version": "dev", "installed_at": "$(date -Iseconds)", "agents": "$installed_agents"}
-EOF
+  # state packs 累加（v0.5.0 分层）
+  ASP_PACK="$pack" ASP_STATE="$STATE_FILE" py <<'PYEOF'
+import json, os, datetime
+f = os.environ["ASP_STATE"]; pack = os.environ["ASP_PACK"]
+s = json.load(open(f, encoding="utf-8")) if os.path.exists(f) else {}
+packs = s.get("packs", [])
+if pack not in packs: packs.append(pack)
+s.update({"packs": packs, "pack": pack, "version": s.get("version", "dev"),
+          "installed_at": datetime.datetime.now().astimezone().isoformat()})
+json.dump(s, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PYEOF
   echo "======================================="
   echo " 安装完成。重启你的 agent 后生效。"
   echo " 回滚: 备份在 _backup/"
@@ -211,11 +225,30 @@ PYEOF
   do_install "$pack"
 }
 
+# 包依赖解析（v0.5.0 分层：专业包依赖 base）
+resolve_deps() { # $1=pack -> 输出安装顺序链
+  local deps
+  deps=$(py - "$ROOT/packs/$1/deps.json" <<'PYEOF'
+import json, sys, os
+f = sys.argv[1]
+print(" ".join(json.load(open(f, encoding="utf-8")).get("requires", [])) if os.path.exists(f) else "")
+PYEOF
+)
+  echo "$deps $1"
+}
+
 case "$COMMAND" in
-  install) do_install "$PACK" ;;
-  update)  do_update "$PACK" ;;
+  install)
+    [ -z "$PACK" ] && PACK="base"
+    chain=$(resolve_deps "$PACK")
+    [ "$(echo $chain | wc -w)" -gt 1 ] && echo "[分层] $PACK 包含基础包，将一并安装: $chain"
+    for p in $chain; do do_install "$p"; done ;;
+  update)
+    [ -z "$PACK" ] && PACK=$(py -c "import json,os;print(json.load(open('$STATE_FILE'))['pack']) if os.path.exists('$STATE_FILE') else print('base')" 2>/dev/null || echo "base")
+    for p in $(resolve_deps "$PACK"); do do_update "$p"; done ;;
   detect)  found="$(detect_agents)"; [ -z "$found" ] && show_guide || echo "$found" | awk -F'|' '{printf "  %-16s %s\n", $2, $1}' ;;
   agents)  do_agents "$PACK" "$TARGET_DIR" ;;
+  list)    for d in "$ROOT"/packs/*/; do n=$(find "$d/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l); echo "  $(basename "$d")  $n skills"; done ;;
   status)  [ -f "$STATE_FILE" ] && cat "$STATE_FILE" || echo "尚未安装任何包。" ;;
-  *) echo "用法: ./asp.sh [install|update|detect|agents|status] [pack] [dir]"; exit 1 ;;
+  *) echo "用法: ./asp.sh [install|update|detect|agents|list|status] [pack] [dir]"; exit 1 ;;
 esac

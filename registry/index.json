@@ -1,87 +1,121 @@
 {
-    "schema":  "asp-registry/0.1",
-    "generated_at":  "2026-09-28T16:04:00Z",
-    "note":  "开发快照。OSS/GitHub Pages 开通后，将 mirrors 替换为真实地址并按周更发版流程更新本文件。",
+    "schema":  "asp-registry/0.2",
+    "generated_at":  "2026-09-29T02:49:51Z",
+    "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。mirrors 待 OSS/Pages 开通后替换。",
     "mirrors":  [
                     "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry",
                     "https://REPLACE-ACCOUNT.github.io/asp/registry"
                 ],
     "packs":  {
+                  "base":  {
+                               "version":  "v0.5.0",
+                               "display_name":  "AI 冷启动包 · 基础包（跨职业通用）",
+                               "price_note":  "10 元档",
+                               "requires":  [
+
+                                            ],
+                               "skills_count":  19,
+                               "skills_categories":  {
+                                                         "提升开发效率":  [
+                                                                        "dev-handoff",
+                                                                        "tech-spec-review",
+                                                                        "release-notes",
+                                                                        "mermaid-diagrams"
+                                                                    ],
+                                                         "保障质量":  [
+                                                                      "bug-triage",
+                                                                      "post-mortem",
+                                                                      "launch-readiness",
+                                                                      "decision-premortem"
+                                                                  ],
+                                                         "规划类":  [
+                                                                     "idea-grilling",
+                                                                     "assumption-audit",
+                                                                     "okr-planning",
+                                                                     "project-kickoff",
+                                                                     "risk-register",
+                                                                     "stakeholder-mapping",
+                                                                     "minimal-solution"
+                                                                 ],
+                                                         "通用工具":  [
+                                                                      "meeting-to-decisions",
+                                                                      "data-insight",
+                                                                      "experiment-design",
+                                                                      "metric-design"
+                                                                  ]
+                                                     },
+                               "mcp_defaults":  [
+                                                    "context7",
+                                                    "memory",
+                                                    "sequential-thinking"
+                                                ],
+                               "prompts_count":  11,
+                               "zip":  "packs/base-v0.5.0.zip",
+                               "sha256":  "cc7b16db0835d43403f30bc3e9c4b48c78492f4c05815d645bb443489f8fecb6"
+                           },
                   "ai-pm":  {
-                                "version":  "v0.4.0",
-                                "display_name":  "AI 产品经理冷启动包",
-                                "zip":  "packs/ai-pm-v0.4.0.zip",
-                                "sha256":  "b4e5887ac8fc802e6042606467e26318d78dec30517e25f4b0927899ae49a6c2",
-                                "skills_included":  [
-                                                        "prd-drafting",
-                                                        "prd-review",
-                                                        "user-story",
-                                                        "feature-prioritization",
-                                                        "minimal-solution",
-                                                        "user-research-interview",
-                                                        "market-sizing",
-                                                        "competitor-analysis",
-                                                        "feedback-triage",
-                                                        "metric-design",
-                                                        "experiment-design",
-                                                        "data-insight",
-                                                        "mermaid-diagrams",
-                                                        "ai-eval-design",
-                                                        "ai-ux-patterns",
-                                                        "idea-grilling",
-                                                        "decision-premortem",
-                                                        "assumption-audit",
-                                                        "okr-planning",
-                                                        "project-kickoff",
-                                                        "risk-register",
-                                                        "stakeholder-mapping",
-                                                        "tech-spec-review",
-                                                        "dev-handoff",
-                                                        "launch-readiness",
-                                                        "bug-triage",
-                                                        "post-mortem",
-                                                        "roadmap-planning",
-                                                        "meeting-to-decisions",
-                                                        "release-notes",
-                                                        "product-reporting"
-                                                    ],
-                                "prompts_count":  42,
-                                "mcp_defaults":  [
-                                                     "context7",
-                                                     "memory",
-                                                     "sequential-thinking"
-                                                 ],
-                                "adapters_min_version":  "0.1"
+                                "version":  "v0.5.0",
+                                "display_name":  "AI 冷启动包 · AI 产品经理专业包",
+                                "price_note":  "19.9 元档（含基础包合计 29.9）",
+                                "requires":  [
+                                                 "base"
+                                             ],
+                                "skills_count":  12,
+                                "skills_categories":  {
+                                                          "发现与洞察":  [
+                                                                        "user-research-interview",
+                                                                        "market-sizing",
+                                                                        "competitor-analysis",
+                                                                        "feedback-triage"
+                                                                    ],
+                                                          "定义与设计":  [
+                                                                        "prd-drafting",
+                                                                        "prd-review",
+                                                                        "user-story",
+                                                                        "feature-prioritization"
+                                                                    ],
+                                                          "AI 产品专项":  [
+                                                                          "ai-eval-design",
+                                                                          "ai-ux-patterns"
+                                                                      ],
+                                                          "战略与交付":  [
+                                                                        "roadmap-planning",
+                                                                        "product-reporting"
+                                                                    ]
+                                                      },
+                                "prompts_count":  31,
+                                "zip":  "packs/ai-pm-v0.5.0.zip",
+                                "sha256":  "bbd1654d23c10a49ca03a4cd877bdb2a24eb1ca5e943e9c5c479eb739c0c91be"
                             }
               },
     "adapters":  {
                      "claude-code":  {
                                          "version":  "0.1",
-                                         "changelog":  "初始版（实测）"
+                                         "changelog":  "实测"
                                      },
                      "zcode":  {
                                    "version":  "0.1",
-                                   "changelog":  "初始版，mcp.servers 键实证（实测）"
+                                   "changelog":  "实测（mcp.servers 键实证）"
                                },
                      "dsh":  {
                                  "version":  "0.1",
-                                 "changelog":  "初始版，AGENTS.md 原生支持实证；MCP template-only"
+                                 "changelog":  "真机实测（全局 skills/AGENTS.md）"
                              },
                      "codex":  {
-                                   "version":  "0.1-dev",
-                                   "changelog":  "文档调研版，W2 实测"
+                                   "version":  "0.2",
+                                   "changelog":  "toml-managed 真机实测"
                                },
                      "cursor":  {
-                                    "version":  "0.1-dev",
-                                    "changelog":  "文档调研版（mdc 规则包装），W2 实测"
+                                    "version":  "0.2",
+                                    "changelog":  "真机写入实测"
                                 },
                      "opencode":  {
-                                      "version":  "0.1-dev",
-                                      "changelog":  "文档调研版（mcp 字段专用模板），W2 实测"
+                                      "version":  "0.2",
+                                      "changelog":  "真机写入实测"
                                   },
                      "kimi":  {
-                                  "version":  "0.1-dev",
-                                  "changelog":  "调研中，enabled=false 不参与安装"
+                                  "version":  "0.2",
+                                  "changelog":  "真机实测（Kimi Claw openclaw 路径）"
                               }
                  }
 }
