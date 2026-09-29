@@ -98,7 +98,7 @@ function Deploy-ManagedSection([string]$Content, [string]$Target, [string]$Tag =
 function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$KeyPath, [string]$Requires, [string]$Tag = "") {
     if (-not (Test-Path $TemplateFile)) { return @{ added = @(); skipped = @(); note = "无模板" } }
     if ($Requires -and -not (Test-Command $Requires)) {
-        return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires（MCP 服务器运行需要它）" }
+        return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires——MCP 增强（查文档/记忆/深度推理）暂不可用，skills 不受影响。解决：① 安装 Node.js（https://nodejs.org）后重跑安装；② 或把 agent 内嵌 runtime（如 Kimi 桌面版）加入 PATH 后重跑" }
     }
     $tpl = Get-Content $TemplateFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $tplServers = $tpl.servers
@@ -150,7 +150,7 @@ $TomlEnd   = "# <<< asp:mcp:end <<<"
 function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$Requires, [string]$Tag = "") {
     if (-not (Test-Path $TemplateFile)) { return @{ added = @(); skipped = @(); note = "无模板" } }
     if ($Requires -and -not (Test-Command $Requires)) {
-        return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires（MCP 服务器运行需要它）" }
+        return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires——MCP 增强（查文档/记忆/深度推理）暂不可用，skills 不受影响。解决：① 安装 Node.js（https://nodejs.org）后重跑安装；② 或把 agent 内嵌 runtime（如 Kimi 桌面版）加入 PATH 后重跑" }
     }
     $tplRaw = [System.IO.File]::ReadAllText($TemplateFile)
     # 从模板提取服务器名（仅用于报告）
@@ -208,14 +208,10 @@ function Invoke-Install([string]$PackName) {
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
 
     Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
-    # 多包依赖链安装时只确认一次（v0.5.0 分层）
-    if (-not $script:AspConfirmed) {
-        $answer = Read-Host "[确认] 全部安装? (Y/n)"
-        if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
-            Write-Host "已取消。"
-            exit 0
-        }
-        $script:AspConfirmed = $true
+    $answer = Read-Host "[确认] 全部安装? (Y/n)"
+    if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
+        Write-Host "已取消。"
+        exit 0
     }
 
     $report = @()
@@ -246,9 +242,8 @@ function Invoke-Install([string]$PackName) {
             Write-Host ("    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署" -f $a.name)
         }
 
-        # 3) MCP（专业包无 mcp 目录时跳过，MCP 归属 base 包）
-        $hasMcp = Test-Path (Join-Path $packDir "mcp")
-        if ($a.mcp.strategy -eq "merge" -and $hasMcp) {
+        # 3) MCP
+        if ($a.mcp.strategy -eq "merge") {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires $a.id
             if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
@@ -257,7 +252,7 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
         } elseif ($a.mcp.strategy -eq "template-only") {
             Write-Host "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录" -ForegroundColor DarkGray
-        } elseif ($a.mcp.strategy -eq "toml-managed" -and $hasMcp) {
+        } elseif ($a.mcp.strategy -eq "toml-managed") {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-TomlManaged $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.requires $a.id
             if ($r.updated)               { Write-Host "    MCP 托管块已更新（模板内 asp-* 服务器）" }
@@ -267,16 +262,13 @@ function Invoke-Install([string]$PackName) {
         }
     }
 
-    # 写状态（v0.5.0：packs 记录为数组，依赖链多次安装累加）
+    # 写状态
+    $state = @{ pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
     if (Test-Path $StateFile) {
         $old = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        $packs = @($old.packs)
-        if ($packs -notcontains $PackName) { $packs += $PackName }
-        $state = @{ packs = $packs; pack = $PackName; version = if ($old.version) { $old.version } else { "dev" }; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
-    } else {
-        $state = @{ packs = @($PackName); pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
+        $state.version = if ($old.version) { $old.version } else { "dev" }
     }
-    $state | ConvertTo-Json | ForEach-Object { Write-Utf8NoBom $StateFile $_ }
+    $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding UTF8
 
     Write-Host ""
     Write-Host "=======================================" -ForegroundColor Green
@@ -366,48 +358,15 @@ function Invoke-Update([string]$PackName) {
     Invoke-Install $PackName
 }
 
-# ---------- 包依赖解析（v0.5.0 分层：专业包依赖 base）----------
-function Resolve-PackDeps([string]$PackName) {
-    # 返回安装顺序列表：依赖在前，目标在后
-    $depsFile = Join-Path $Root ("packs/" + $PackName + "/deps.json")
-    $chain = @()
-    if (Test-Path $depsFile) {
-        $deps = (Get-Content $depsFile -Raw -Encoding UTF8 | ConvertFrom-Json).requires
-        foreach ($d in @($deps)) { $chain += $d }
-    }
-    $chain += $PackName
-    return ,$chain
-}
-
 # ---------- 主分发 ----------
 switch ($Command.ToLower()) {
-    "install" {
-        if (-not $Pack) { $Pack = "base" }
-        $chain = Resolve-PackDeps $Pack
-        if ($chain.Count -gt 1) {
-            Write-Host ("[分层] {0} 包含基础包，将一并安装: {1}" -f $Pack, ($chain -join " -> ")) -ForegroundColor Cyan
-        }
-        foreach ($p in $chain) { Invoke-Install $p }
-    }
-    "update"  {
-        if (-not $Pack) {
-            if (Test-Path $StateFile) { $Pack = (Get-Content $StateFile -Raw | ConvertFrom-Json).pack } else { $Pack = "base" }
-        }
-        $chain = Resolve-PackDeps $Pack
-        foreach ($p in $chain) { Invoke-Update $p }
-    }
+    "install" { if (-not $Pack) { $Pack = "ai-pm" }; Invoke-Install $Pack }
+    "update"  { if (-not $Pack) { if (Test-Path $StateFile) { $Pack = (Get-Content $StateFile -Raw | ConvertFrom-Json).pack } else { $Pack = "ai-pm" } }; Invoke-Update $Pack }
     "detect"  { $agents = Find-Agents; if ($agents.Count -eq 0) { Show-Guide } else { $agents | ForEach-Object { Write-Host ("  {0,-14} {1}" -f $_.name, $_.id) } } }
     "agents"  { Invoke-Agents $Pack $TargetDir }
-    "list"    {
-        Write-Host "可用包:"
-        Get-ChildItem (Join-Path $Root "packs") -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-            $n = (Get-ChildItem (Join-Path $_.FullName "skills") -Directory -ErrorAction SilentlyContinue | Measure-Object).Count
-            Write-Host ("  {0,-8} {1,3} skills" -f $_.Name, $n)
-        }
-    }
     "status"  {
         if (Test-Path $StateFile) { Get-Content $StateFile -Raw -Encoding UTF8 }
         else { Write-Host "尚未安装任何包。" }
     }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status] [pack]"; exit 1 }
+    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|status] [pack]"; exit 1 }
 }

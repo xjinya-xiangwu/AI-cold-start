@@ -1,5 +1,6 @@
 _backup/
 _state.json
 *.zip
+!registry/packs/*.zip
 .mimosa/
 collector/state/
