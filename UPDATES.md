@@ -1,14 +1,27 @@
 # 更新日志
 
-## v0.4.1（2026-09-30）
+## v0.5.1（2026-09-30）
 
-工程收口版：update 链路正式打通（GitHub Pages 上线），无 Node 机器提示升级，AGENTS.md 增加术语层。
+**update 链路打通 + 工程收口**：周更承诺的物理载体正式上线，双包同步升版。
 
-- **update 链路打通**：GitHub Pages 备源上线并升为主源（`https://xjinya-xiangwu.github.io/AI-cold-start/registry`），zip 随仓库分发（registry/packs/），OSS 开通后换回主源即可——双源 failover 逻辑不变
-- **安装器**：无 Node 机器的 MCP 跳过从"静默一行"升级为可行动提示（装 Node 或用 agent 内嵌 runtime 的两条路径）
-- **AGENTS.md**：知识基准新增「术语速查」12 条（RICE/北极星/灰度/埋点/UAT/TTDR 等），agent 输出行话口径不再露怯
-- **发版脚本**：build-release 现在自动把 zip 同步到 registry/packs/（Pages 直发）
-- 首用三连实测定稿：idea-grilling / prd-drafting / product-reporting 三条示例指令在本机 Zcode 真机跑通（结构化输出符合各 skill 规范）
+- **GitHub Pages 主源上线**：`https://xjinya-xiangwu.github.io/AI-cold-start/registry`（zip 随仓库分发 registry/packs/，发版脚本自动同步）；OSS 开通后替换 mirrors[1] 换回主源，双源 failover 逻辑不变
+- **安装器**：无 Node 机器的 MCP 跳过升级为可行动提示（装 Node / 用 agent 内嵌 runtime 两条路）
+- **AGENTS.md 术语层**：base 新增交付类术语速查 6 条（灰度/回滚/埋点/UAT/TTDR/AARRR）；ai-pm 新增 PM 术语速查 6 条（RICE/WSJF/KANO/北极星护栏/OKR 置信度/DAU-MAU）
+- **首用三连实测定稿**：idea-grilling / prd-drafting / product-reporting 三条示例指令在 Zcode 真机跑通，结构化输出符合各 skill 规范
+- 发版流程：双包同版本号升版（base 与 ai-pm 的 AGENTS 都有变更）
+
+## v0.5.0（2026-09-29）
+
+**分层定价重构**：单包 29.9 拆为「基础包 ¥10（跨职业通用）+ PM 专业包 ¥19.9（含基础合计 29.9）」两层结构。31 个 skills 零增减，全部按"跨职业通用 vs PM 专属"重新归层；基础层将被后续开发者包/内容创作包复用。
+
+- **packs/base（新，19 skills 四类）**：提升开发效率 4（dev-handoff/tech-spec-review/release-notes/mermaid-diagrams）+ 保障质量 4（bug-triage/post-mortem/launch-readiness/decision-premortem）+ 规划类 7（idea-grilling/assumption-audit/okr-planning/project-kickoff/risk-register/stakeholder-mapping/minimal-solution）+ 通用工具 4（meeting-to-decisions/data-insight/experiment-design/metric-design）
+- **packs/ai-pm（12 skills 四类）**：发现与洞察 4 + 定义与设计 4 + AI 产品专项 2 + 战略与交付 2
+- **AGENTS.md 分层**：base 版（通用五环工作流 + 通用知识基准）/ ai-pm 版（两层 31 技能地图 + 九环 PM 工作流，安装依赖链顺序保证后装超集胜出）
+- **prompts 拆分**：通用 11 条（决策评审 4/数据实验 7）→ base；PM 专属 31 条留 ai-pm（合计 42 不变）
+- **MCP 归属 base**（3 个零 key 为通用能力）；专业包无 mcp 目录，安装器跳过
+- **安装器**：包依赖链机制（deps.json requires，install ai-pm 自动先装 base，一次确认）；默认包改为 base；新增 list 命令；state 记录 packs 数组；state 写入修复为无 BOM
+- **发版隔离**：build-release 按包过滤打包——base.zip 物理不含专业层内容（¥10 买家拿不到 ai-pm skills）；ai-pm.zip 含 base+ai-pm（依赖安装自包含）；registry/index.json 升级 v0.2 两包结构（含价格档位/skills 分类/requires）
+- **商品文案 v3**（docs/shop-listing.md）：两商品结构（基础包/PM 专业包各自完整详情页 + 互链引导 + 已购补差价 FAQ）；数字口径备忘同步分层
 
 ## v0.4.0（2026-09-28）
 

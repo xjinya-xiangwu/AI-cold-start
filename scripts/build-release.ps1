@@ -30,22 +30,34 @@ if (-not $Version) {
 $tag = "v$Version"
 Write-Host "[发版] $Pack $tag"
 
-# 3) 打包（排除开发产物）
+# 3) 打包（v0.5.0 分层：按包过滤 packs——base zip 只含 base；专业包 zip 含 base+该包，依赖安装需要）
 $stage = Join-Path $env:TEMP ("asp-rel-" + [guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory $stage | Out-Null
-foreach ($part in @("packs", "adapters", "registry")) {
-    Copy-Item (Join-Path $Root $part) (Join-Path $stage $part) -Recurse
+New-Item -ItemType Directory "$stage/packs" | Out-Null
+# 依赖闭包：base 恒含；专业包按 deps.json 的 requires 收集
+$includePacks = @("base")
+$depsFile = Join-Path $Root "packs/$Pack/deps.json"
+if (Test-Path $depsFile) {
+    foreach ($d in @((Get-Content $depsFile -Raw -Encoding UTF8 | ConvertFrom-Json).requires)) {
+        if ($includePacks -notcontains $d) { $includePacks += $d }
+    }
 }
+if ($includePacks -notcontains $Pack) { $includePacks += $Pack }
+foreach ($pk in $includePacks) {
+    Copy-Item (Join-Path $Root "packs/$pk") (Join-Path "$stage/packs" $pk) -Recurse
+}
+Copy-Item (Join-Path $Root "adapters") (Join-Path $stage "adapters") -Recurse
+Copy-Item (Join-Path $Root "registry") (Join-Path $stage "registry") -Recurse
 Get-ChildItem $Root -File | Where-Object { $_.Name -match '^asp\.(ps1|sh)$|^setup\.|^update\.|^README\.md$' } | ForEach-Object {
     Copy-Item $_.FullName (Join-Path $stage $_.Name)
 }
+Write-Host ("[打包] 包含 packs: {0}" -f ($includePacks -join ", "))
 $zipName = "$Pack-$tag.zip"
 $zipPath = Join-Path $Dist $zipName
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path "$stage/*" -DestinationPath $zipPath -Force
 Remove-Item $stage -Recurse -Force
 
-# 3.5) 同步 zip 到 registry/packs/（GitHub Pages 备源直发；OSS 主源开通后同样上传）
+# 3.5) 同步 zip 到 registry/packs/（GitHub Pages 主源直发；OSS 开通后同样上传）
 $regPacks = Join-Path $Root "registry/packs"
 if (-not (Test-Path $regPacks)) { New-Item -ItemType Directory $regPacks | Out-Null }
 Copy-Item $zipPath (Join-Path $regPacks $zipName) -Force
