@@ -110,6 +110,7 @@ function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$Ke
         return @{ added = @(); skipped = @(); note = "跳过：未检测到 $Requires——MCP 增强（查文档/记忆/深度推理）暂不可用，skills 不受影响。解决：① 安装 Node.js（https://nodejs.org）后重跑安装；② 或把 agent 内嵌 runtime（如 Kimi 桌面版）加入 PATH 后重跑" }
     }
     $tpl = Get-Content $TemplateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    # 模板统一约定：{ servers: {...} } 包装（与目标容器布局无关，目标侧按 $KeyPath 定位）
     $tplServers = $tpl.servers
     if (-not $tplServers) { return @{ added = @(); skipped = @(); note = "模板无 servers" } }
 
@@ -122,13 +123,20 @@ function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$Ke
         if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     }
 
-    # 按 key path（"mcpServers" 或 "mcp.servers"）定位容器
+    # 按 key path（"mcpServers" / "mcp.servers" / "mcp"）定位容器
     $container = $null
     if ($KeyPath -eq "mcpServers") {
         if (-not $cfg.PSObject.Properties["mcpServers"]) {
             $cfg | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue (New-Object PSObject)
         }
         $container = $cfg.mcpServers
+    }
+    elseif ($KeyPath -eq "mcp") {
+        # opencode 布局：{ mcp: { NAME: {...} } }——容器就是 cfg.mcp 本身
+        if (-not $cfg.PSObject.Properties["mcp"]) {
+            $cfg | Add-Member -NotePropertyName "mcp" -NotePropertyValue (New-Object PSObject)
+        }
+        $container = $cfg.mcp
     }
     else {
         if (-not $cfg.PSObject.Properties["mcp"]) {
@@ -235,6 +243,9 @@ function Invoke-Install([string]$PackName) {
         Write-Host ("==> 部署到 {0}" -f $a.name) -ForegroundColor Cyan
 
         # 1) skills（未声明 skills_dir 的 agent——如纯迁移适配器——跳过包安装）
+        if (-not $a.skills_dir -and (-not $a.instructions.mode -or $a.instructions.mode -eq "none")) {
+            Write-Host "    包安装未开放（该端当前仅支持环境迁移，见 UPDATES.md）——如需接入请提供真实布局" -ForegroundColor DarkGray
+        }
         $skillsSrc = Join-Path $packDir "skills"
         if ($a.skills_dir -and (Test-Path $skillsSrc)) {
             $dst = Expand-Tilde $a.skills_dir
@@ -255,11 +266,25 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: AGENTS.md {1}" -f $a.name, $r)
         } elseif ($a.instructions.mode -eq "workspace") {
             Write-Host ("    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署" -f $a.name)
+        } elseif ($a.instructions.mode -eq "cursor-rules" -and $a.instructions.target) {
+            # Cursor 全局规则：包装为带 frontmatter 的 .mdc；frontmatter 在标记外，正文走 asp 托管段（幂等）
+            $mdcTarget = Expand-Tilde $a.instructions.target
+            $mdcFm = "---`r`ndescription: AI 冷启动包 - PM 工作流与知识基准（asp 托管段自动更新，勿在标记间手工修改）`r`nalwaysApply: true`r`n---"
+            if (Test-Path $mdcTarget) {
+                $r = Deploy-ManagedSection $agentsMd $mdcTarget $a.id
+            } else {
+                New-Item -ItemType Directory -Force -Path (Split-Path $mdcTarget) | Out-Null
+                Write-Utf8NoBom $mdcTarget ($mdcFm + "`r`n`r`n" + $BeginMark + "`r`n" + $agentsMd + "`r`n" + $EndMark + "`r`n")
+                $r = "created"
+            }
+            Write-Host ("    rules -> {0} ({1})" -f $a.instructions.target, $r)
+            $report += ("{0}: rules {1}" -f $a.name, $r)
         }
 
         # 3) MCP（专业包无 mcp 目录时跳过，MCP 归属 base 包）
         $hasMcp = Test-Path (Join-Path $packDir "mcp")
-        if ($a.mcp.strategy -eq "merge" -and $hasMcp) {
+        if (($a.mcp.strategy -eq "merge" -or $a.mcp.strategy -eq "json-merge") -and $hasMcp) {
+            # merge = Claude 风格 mcpServers / zcode mcp.servers；json-merge = opencode 风格 mcp 容器（Merge-McpConfig 按 key 分派）
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires $a.id
             if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }

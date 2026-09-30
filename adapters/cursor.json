@@ -1,13 +1,15 @@
 {
   "id": "cursor",
   "name": "Cursor",
-  "version": "0.1-dev",
-  "detect": ["~/.cursor"],
+  "version": "0.2",
+  "detect": [
+    "~/.cursor"
+  ],
   "skills_dir": "~/.cursor/skills",
   "instructions": {
     "mode": "cursor-rules",
     "target": "~/.cursor/rules/asp-ai-pm.mdc",
-    "note": "Cursor 规则体系：项目级 .cursor/rules/*.mdc、全局 ~/.cursor/rules/。安装器将 AGENTS.md 内容包装为带 frontmatter 的 .mdc（description + alwaysApply）写入全局规则。用户需在 Settings → Rules, Skills and Subagents 开启兼容开关（安装完成报告会提示）。skills 目录支持待 W2 实测"
+    "note": "Cursor 规则体系：项目级 .cursor/rules/*.mdc、全局 ~/.cursor/rules/。v0.6.2 起安装器将 AGENTS.md 内容包装为带 frontmatter 的 .mdc（description + alwaysApply）写入全局规则（asp 托管段，幂等）。用户需在 Settings → Rules, Skills and Subagents 开启兼容开关。skills 目录加载支持待装机实测"
   },
   "mcp": {
     "strategy": "merge",
@@ -17,5 +19,7 @@
     "requires": "npx",
     "note": "Cursor mcp.json 与 Claude 格式同构"
   },
-  "smoke": { "cmd": "cursor --version" }
+  "smoke": {
+    "cmd": "cursor --version"
+  }
 }

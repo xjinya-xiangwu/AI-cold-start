@@ -1,8 +1,10 @@
 {
   "id": "opencode",
   "name": "opencode",
-  "version": "0.1-dev",
-  "detect": ["~/.config/opencode"],
+  "version": "0.2",
+  "detect": [
+    "~/.config/opencode"
+  ],
   "skills_dir": "~/.config/opencode/skills",
   "instructions": {
     "mode": "workspace",
@@ -15,7 +17,9 @@
     "key": "mcp",
     "template": "opencode.mcp.json",
     "requires": "npx",
-    "note": "opencode.json 的 mcp 字段格式 {NAME:{type:'local',command:[...]}} 与 Claude 不同，需专用模板 + 专用合并逻辑（W2 实现）"
+    "note": "实测/v0.6.2 起安装器支持 json-merge：opencode.json 的 mcp 字段 {NAME:{type:local,command:[...]}}，merge 仅新增键"
   },
-  "smoke": { "cmd": "opencode --version" }
+  "smoke": {
+    "cmd": "opencode --version"
+  }
 }

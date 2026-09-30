@@ -1,5 +1,30 @@
 # UPDATES
 
+## v0.6.2（2026-09-30）— 全量适配器审计：修复 Cursor / opencode 两处静默失效
+
+v0.6.1 修 WorkBuddy 后对全部 10 个适配器做了同主题审计（声明的能力 vs 安装器真实分派 vs agent 实际加载链），又发现两处同类问题——**适配器声明了模式，但 install 分派里没有对应代码路径，静默跳过**：
+
+**修复 1：Cursor 全局规则从未部署**
+- adapter 声明 `instructions.mode: "cursor-rules"`，但 Invoke-Install 只实现 managed-section / workspace 两种模式 → Cursor 安装时只落了 skills 和 MCP，角色设定从未进入规则体系
+- 现已实现：AGENTS.md 内容包装为带 frontmatter（description + alwaysApply）的 `.mdc` 写入 `~/.cursor/rules/asp-ai-pm.mdc`，正文走 asp 托管段（幂等可重复）
+
+**修复 2：opencode MCP 从未部署**
+- adapter 声明 `mcp.strategy: "json-merge"`，分派只认 merge / template-only / toml-managed → opencode 的 MCP 配置从未写入
+- 现已实现：分派接受 json-merge，Merge-McpConfig 支持 opencode 布局（目标容器 `{mcp:{NAME:{type:'local',command:[...]}}}`）；同时把 opencode.mcp.json 模板规范化为统一的 `{servers:{...}}` 包装（此前用 `{mcp:{...}}` 触发"模板无 servers"）
+
+**体验：仅迁移端不再静默**
+- trae / qoder 这类只支持环境迁移的端，install 时现在显式打印"包安装未开放（该端当前仅支持环境迁移）"，不再无声略过
+
+**审计结论（其余适配器）**
+- ✅ zcode：skills / workspace AGENTS.md / mcp.servers merge 三项本机实证
+- ✅ claude-code：~/.claude/skills、~/.claude/CLAUDE.md、~/.claude.json mcpServers 均为官方文档行为
+- ✅ codex：~/.codex/AGENTS.md 与 config.toml [mcp_servers.*] 为官方格式；skills 目录支持官方未定（adapter 已自注 W2 降级策略）
+- ✅ dsh / kimi：v0.2 真机实测（2026-09-28），MCP template-only 为官方沙箱/插件体系限制的刻意设计
+- ⚠️ 待装机实测（adapter 已自注）：cursor 的 ~/.cursor/skills 加载、opencode 的全局指令文件、codex 的 skills 机制
+- 迁移-only：trae / qoder（已明示）；workbuddy 于 v0.6.1 转正
+
+---
+
 ## v0.6.1（2026-09-30）— WorkBuddy 适配转正 + 安装器两处修复
 
 **WorkBuddy 适配器 v0.1 → v0.2（真机实测转正：迁移-only → 完整安装）**
