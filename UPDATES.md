@@ -1,5 +1,23 @@
 # UPDATES
 
+## v0.6.1（2026-09-30）— WorkBuddy 适配转正 + 安装器两处修复
+
+**WorkBuddy 适配器 v0.1 → v0.2（真机实测转正：迁移-only → 完整安装）**
+
+真机实测（Win11，`~/.workbuddy` 真实布局）：WorkBuddy 加载的是 `~/.workbuddy/` 下 **SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/**（外加工作区 `.workbuddy/memory/`）；**AGENTS.md 不在其加载链**。v0.1 的 install 能检测到 `~/.workbuddy` 但一个文件都不部署——角色设定从未真正进入 system prompt，包的价值只通过 skills 生效。
+
+- `skills_dir` 指向 `~/.workbuddy/skills/`，包安装/更新走与其他 agent 相同链路
+- 角色与工作流内容改为 **managed-section 部署进 SOUL.md**（asp:begin/end 托管段，幂等可重复），不再生成无效的 AGENTS.md
+- **MCP 打通**：实测 `~/.workbuddy/mcp.json` 为 Claude 风格 `mcpServers` → strategy=merge（复用 claude-code.mcp.json 模板），只增新键；真机验证已有 4 个 server 逐字节保留、新增 asp-* 3 个
+- migrate 收集面同步扩展：skills/、SOUL.md、mcp.json 经 adapter 字段自动收集，另补 settings.json / IDENTITY.md / USER.md
+
+**安装器修复**
+
+- **语法错误（阻塞级）**：export 的 GitHub 通道提示行 `Write-Host (... -f )` 格式运算符缺值 → PowerShell 解析阶段直接失败，**该版本下所有命令（包括 install）都无法运行**；已修
+- **`asp agents` 参数识别**：只传一个目录参数时被当作包名，Join-Path 产生非法路径报错 → 现自动识别目录参数，`agents <dir>`（文档原用法）与 `agents <pack> <dir>` 两种写法均可用；头部用法注释同步修正
+
+---
+
 ## v0.6.0（2026-09-30）— 一键环境迁移 + 国内 agent 适配
 
 **新功能：环境迁移（export / migrate，零依赖）**

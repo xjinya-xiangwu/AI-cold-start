@@ -83,10 +83,10 @@ bash asp.sh install
 | KimiWork（Kimi Claw） | `~/.kimi_openclaw/workspace/skills/` | workspace AGENTS.md | 插件体系（研究） | ✅ 真机实测 |
 | Trae（字节） | 待实测 | 待实测 | `~/.trae/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
 | Qoder（阿里） | 待实测 | 待实测 | `~/.qoder/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
-| WorkBuddy | 待实测 | 待实测 | `~/.workbuddy/`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
+| WorkBuddy | `~/.workbuddy/skills/` | SOUL.md 托管段（AGENTS.md 不在其加载链） | `~/.workbuddy/mcp.json` merge | ✅ 真机实测 |
 
 > 「写入实证」= 安装/幂等/配置保留已真机验证，agent 侧首开冒烟由各端用户确认；实测环境 Win10 / PowerShell 5.1。
-> 🔁 国内三端（Trae/Qoder/WorkBuddy）v0.1：**环境迁移已支持**（检测不到的路径自动跳过），包安装待真机实测后开放——配置真实布局欢迎 issue 反馈修正。
+> 🔁 国内两端（Trae/Qoder）v0.1：**环境迁移已支持**（检测不到的路径自动跳过），包安装待真机实测后开放——配置真实布局欢迎 issue 反馈修正。WorkBuddy 已于 v0.6.1 真机实测转正：skills 部署 + 角色内容进 SOUL.md 托管段（实测加载链为 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/，AGENTS.md 不生效）+ `~/.workbuddy/mcp.json` merge。
 
 ## 内容清单（v0.5.0 分层）
 

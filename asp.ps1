@@ -4,7 +4,7 @@
 #   asp.ps1 install [pack]     安装包到所有检测到的 agent（默认 ai-pm）
 #   asp.ps1 update [pack]      从 registry 拉取并更新（默认全部已装包）
 #   asp.ps1 detect             探测本机已安装的 agent
-#   asp.ps1 agents [dir]       将包的 AGENTS.md 部署到指定项目目录（默认当前目录）
+#   asp.ps1 agents [pack] [dir] 将包的 AGENTS.md 部署到项目目录（只给一个目录参数时自动识别，默认当前目录+已装包）
 #   asp.ps1 status             查看已装状态
 #   asp.ps1 export [-Out x]    收集本机全部 agent 环境 -> 迁移包（零依赖）
 #   asp.ps1 migrate <包>       把迁移包还原到本机（merge 语义：只增改不删除）
@@ -301,6 +301,8 @@ function Invoke-Install([string]$PackName) {
 
 # ---------- agents 子命令：部署 AGENTS.md 到项目目录 ----------
 function Invoke-Agents([string]$PackName, [string]$Dir) {
+    # 兼容两种调用：`agents <dir>`（目录参数自动识别）与 `agents <pack> <dir>`
+    if ($PackName -and (Test-Path $PackName -PathType Container)) { $Dir = $PackName; $PackName = "" }
     if (-not $PackName) { if (Test-Path $StateFile) { $PackName = (Get-Content $StateFile -Raw | ConvertFrom-Json).pack } else { $PackName = "ai-pm" } }
     if (-not $Dir) { $Dir = (Get-Location).Path }
     $packDir = Join-Path $Root ("packs/" + $PackName)
@@ -526,7 +528,7 @@ function Invoke-Export([string]$Out) {
             Write-Host "  新机器三步:" -ForegroundColor Green
             Write-Host ("    ① git clone {0}" -f $Repo) -ForegroundColor Green
             Write-Host "    ② 进入目录: asp.ps1 install        （装 asp 运行环境本身）" -ForegroundColor Green
-            Write-Host ("    ③ asp.ps1 migrate env -Yes         （从 env/ 一键还原全部环境）" -f ) -ForegroundColor Green
+            Write-Host ("    ③ asp.ps1 migrate env -Yes         （从 env/ 一键还原全部环境）") -ForegroundColor Green
             Write-Host "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。" -ForegroundColor Yellow
         } else {
             Write-Host "[错误] git push 失败——本地包保留在: $outFile（可手动推或 U 盘带过去）" -ForegroundColor Red

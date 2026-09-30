@@ -1,14 +1,22 @@
 {
   "id": "workbuddy",
   "name": "WorkBuddy",
-  "version": "0.1",
+  "version": "0.2",
   "detect": ["~/.workbuddy"],
-  "note": "国内主流 agent。已支持：环境迁移（配置目录整收集，布局待实测——检测不到自动跳过）。包安装待实测后开放。",
-  "instructions": { "mode": "none" },
-  "mcp": { "strategy": "none" },
+  "skills_dir": "~/.workbuddy/skills",
+  "note": "国内主流 agent。真实布局已实测（2026-09-30，Win11）：加载 ~/.workbuddy/ 下 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/ + 工作区 .workbuddy/memory/；AGENTS.md 不在加载链——因此角色/工作流内容以 managed-section 部署进 SOUL.md，而不是建 AGENTS.md。",
+  "instructions": { "mode": "managed-section", "target": "~/.workbuddy/SOUL.md" },
+  "mcp": {
+    "strategy": "merge",
+    "target": "~/.workbuddy/mcp.json",
+    "key": "mcpServers",
+    "template": "claude-code.mcp.json",
+    "requires": "npx",
+    "note": "实测为 Claude 风格 mcpServers；merge 只增新键，用户已有 server 一律不动"
+  },
   "migrate": {
-    "files": ["~/.workbuddy/mcp.json", "~/.workbuddy/settings.json"],
+    "files": ["~/.workbuddy/settings.json", "~/.workbuddy/IDENTITY.md", "~/.workbuddy/USER.md"],
     "dirs": [],
-    "note": "配置文件按存在收集；真实布局待实测（欢迎 issue 反馈补正）"
+    "note": "skills/ SOUL.md mcp.json 已由 skills_dir / instructions.target / mcp.target 自动收集，此处仅补齐加载链其余文件"
   }
 }
