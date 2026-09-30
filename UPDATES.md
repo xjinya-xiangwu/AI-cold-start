@@ -1,5 +1,22 @@
 # UPDATES
 
+## v0.8.0（2026-10-01）— 零 MCP 默认：增强能力进 Skills（方案 B）
+
+**决策**：v0.7.0 把默认 MCP 收敛到 1 个（context7 远程端点）后，进一步评估认为对 agent 的供给仍属过重——本机实证默认装的 MCP 从未被调用，且 skills 分发面是全部 10 个 agent 中**唯一全程验证可靠**的部署面（MCP 配置面有被证伪先例）。调研与设计全文见 [docs/DESIGN-ZERO-MCP.md](docs/DESIGN-ZERO-MCP.md)。
+
+- **新增 skill：fresh-docs（文档查新，base 第 20 个）**——回答任何库/框架/平台/SDK 用法、配置、版本差异前，指挥 agent 用内置 web 工具查官方文档：检索三步法（搜索 → 选官方域 → 定向抓取）+ 输出硬规则（结论必带版本号或日期，拿不到标"版本未验证"，附来源 URL）+ 四级降级链（context7 MCP 若装了优先用 → websearch+webfetch → 仅 webfetch 直取官方域 → 无 web 工具时明示"基于训练知识，可能过期"）
+- **可行性摸底**（调研结论）：10 agent 中 7 个已确认自带 web 工具（ZCode/Claude Code/Codex/Cursor/opencode/WorkBuddy 实证或官方文档，Kimi 高置信），3 个待验证（DSH/Trae/Qoder）但降级链全覆盖——最坏情况是诚实声明知识可能过期，不劣于现状
+- **默认 MCP 模板清零**：claude-code / zcode / opencode / cursor 模板 `{"servers":{}}`，codex toml 仅注释——merge 机制完整保留（给可选增强与未来包用），安装报告打印「默认 0 个 MCP（能力由 skills 承载）」
+- **optional-mcp.md 重构**：context7 升为可选第一位（含免费 key 一分钟引导：context7.com/dashboard，免低限流；四种 agent 写法；装后 `asp doctor` 实测）；memory / sequential-thinking 维持可选
+- **AGENTS.md 知识层**（base + ai-pm 双包，全 agent 生效）：新增「文档查新纪律」——训练截止后可能变化的知识不凭记忆作答、引用带版本或日期、官方域优先、无网工具时声明过期
+- **adapter**：claude-code / zcode / opencode 的 `requires: npx` 门槛移除（默认零 MCP 后无运行时要求；merge 机制仍在，供可选件用）
+- **asp doctor 保留不动**：从"默认件的验货器"转为"可选件的验货器"，继续对用户自加的 MCP 做真实握手体检
+- **待验证清单**：金题集对比（fresh-docs vs context7，接受标准：准确性 ≥ 90% 且版本标注率 ≥ 90%，不达标不切默认回滚）；DSH/Trae/Qoder 内置 web 工具实测；mac/Linux 端 asp.sh 零 MCP 分支
+
+**升级注意**：遵循「只增不覆盖」，v0.7.0 及之前写入的 asp-* MCP 条目不会被自动删除；想收敛到零 MCP 默认请手动移除对应条目（`asp doctor` 可先看哪些还活着）。
+
+---
+
 ## v0.7.0（2026-10-01）— MCP 三件套重构：能力位收缩 + 远程端点 + doctor 体检
 
 **背景**：kurtx 协同机全链路诊断发现——v0.6.1 写入 WorkBuddy 的 asp-* 三件套**全部未生效**（`~/.workbuddy/mcp.json` 不在其加载面，工具注册表零命中）；asp-memory 的 npx 缓存损坏导致启动即崩；context7 / sequential-thinking 包本身健康但所在配置面失效。诊断与决策过程见 SIAE broadcast log（2026-10-01 kurtx/ZCode 条目）。

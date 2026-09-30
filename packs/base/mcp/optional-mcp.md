@@ -1,21 +1,46 @@
-# 可选 MCP 扩展（v0.7.0）
+# 可选 MCP 扩展（v0.8.0）
 
-## 〇、默认包现状（v0.7.0 起）
+## 〇、为什么默认零 MCP（v0.8.0 决策）
 
-默认只装 **1 个 MCP**：`asp-context7`（Context7 官方托管远程端点 `https://mcp.context7.com/mcp`）——零 key、零 node/npx 依赖、零冷启动、装完即验（`asp doctor` 可实测握手）。
+v0.8.0 起基础包**默认不装任何 MCP**：增强能力全部由 skills 承载——「文档新鲜度」由 **fresh-docs** skill 提供（指挥 agent 用内置 web 搜索/抓取工具查官方文档，带检索三步法与版本标注纪律），跨全部 10 个受支持 agent 零配置零故障面。
 
-**为什么 asp-memory / asp-sequential-thinking 从 v0.7.0 起默认不装**（2026-10-01 重构决策，背景见 UPDATES.md v0.7.0）：
+理由（2026-10-01 决策，详见 docs/DESIGN-ZERO-MCP.md 与 UPDATES.md v0.8.0）：
+- skills 分发面是唯一在全部 agent 上验证可靠的部署面；MCP 配置面的可靠性因 agent 而异（有被证伪先例）
+- 主流 agent 均自带 web 搜索/抓取，context7 的边际价值集中在"重度查文档的开发者"
+- 默认装的 MCP 实证调用率≈0，属于过度供给；零 MCP = 零运行时依赖、零第三方端点依赖、零限流面
 
-| 原服务 | 默认移出的原因 |
-|---|---|
-| `asp-memory`（知识图谱记忆） | ① 2026 年主流 agent（Claude Code / ZCode / WorkBuddy / Cursor 等）均已有原生记忆或成熟第三方记忆方案，能力高度重叠；② MCP 官方明确定位为「参考实现、非生产级」；③ 其数据默认落在 npx 缓存目录内——npx 升级/清缓存会连带清掉你的记忆数据（数据安全隐患）；④ 实测存在 npx 并行安装竞态导致的启动崩溃案例 |
-| `asp-sequential-thinking`（分步推理） | 2026 年模型已普遍内置 thinking/推理能力，该工具的增益难以实证；无状态、无数据风险，但默认安装属于负资产（注册了工具却从不被调用） |
+**什么时候值得加回 context7**：你是重度查库/框架文档的开发者，想要结构化、版本化的文档切片（比网页抓取更省 token、更降噪）。装法见下。
 
-如果你的 agent 确实没有自带记忆，或你想显式要这两件，按下面片段自行添加。
+原则不变：**安装器永不收集你的 API key**。
 
-原则：**安装器永不收集你的 API key**。需要 key 的服务只给注册指引和配置片段，由你自己填入。
+## 一、推荐可选：asp-context7（文档检索增强，远程零依赖）
 
-## 一、asp 三件套的剩余两件（按需添加）
+官方托管远程端点，无需 node/npx。已装 fresh-docs 的 agent 会在检测到它时自动优先使用（降级链第一档）。
+
+```json
+"asp-context7": {
+  "type": "http",
+  "url": "https://mcp.context7.com/mcp"
+}
+```
+
+- Cursor 写法（remote 格式不同构）：`"asp-context7": { "url": "https://mcp.context7.com/mcp" }`
+- opencode 写法：`"asp-context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" }`
+- Codex（config.toml）：
+
+```toml
+[mcp_servers.asp-context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+```
+
+**限流提示**：无 key 可用但限额低；免费 key 一分钟申请——context7.com/dashboard，拿到后加 header `"CONTEXT7_API_KEY": "<你的key>"`（或 env）。
+
+**装完验证**：`asp doctor`——对它做真实 initialize 握手，PASS 才算装好。
+
+各 agent 的 MCP 配置文件位置见 README「支持的 agent」表。
+
+## 二、asp-memory / asp-sequential-thinking（按需，v0.7.0 起默认不装）
 
 ### asp-memory（仅当你的 agent 无原生记忆时）
 
@@ -42,18 +67,18 @@
 }
 ```
 
-## 二、零 key 但需要 Python/uvx 环境（未进默认包的原因）
+2026 年模型已普遍内置 thinking，增益有限；无状态无数据风险。
+
+## 三、零 key 但需要 Python/uvx 环境
 
 | 服务 | 用途 | 运行要求 |
 |---|---|---|
-| `mcp-server-fetch`（官方） | 让 agent 抓网页内容做竞品/行业调研 | `uvx mcp-server-fetch`，需 uv |
-| `mcp-server-sqlite`（官方） | 对本地 db 文件做数据分析查询 | `uvx mcp-server-sqlite --db-path <路径>`，需 uv |
+| `mcp-server-fetch`（官方） | 抓网页内容做调研 | `uvx mcp-server-fetch`，需 uv |
+| `mcp-server-sqlite`（官方） | 本地 db 查询分析 | `uvx mcp-server-sqlite --db-path <路径>`，需 uv |
 
-有 uv 环境的用户可自行加入配置；未来版本会探测 uv 后自动提供。
+## 四、需要注册 key 的高价值服务（自行注册，key 不经过安装器）
 
-## 三、需要注册 key 的高价值服务（自行注册，key 不经过安装器）
-
-### Brave Search（联网搜索，PM 日常查资料刚需）
+### Brave Search（联网搜索）
 
 注册：https://brave.com/search/api/ （免费档每月 2000 次）
 
@@ -66,9 +91,9 @@
 }
 ```
 
-### GitHub（跟踪竞品仓库动向、读需求讨论 issue）
+### GitHub（跟踪竞品仓库、读 issue 讨论）
 
-注册：https://github.com/settings/tokens （选 public repo 只读权限即可）
+注册：https://github.com/settings/tokens （public repo 只读即可）
 
 ```json
 "asp-github": {
@@ -79,9 +104,9 @@
 }
 ```
 
-### Notion（读写你的 Notion 工作区，需求池/文档同步）
+### Notion（读写 Notion 工作区）
 
-注册：https://developers.notion.com/ 建内部集成，把页面授权给该集成
+注册：https://developers.notion.com/ 建内部集成并授权页面
 
 ```json
 "asp-notion": {
@@ -92,6 +117,6 @@
 }
 ```
 
-## 四、接入与验证
+## 五、接入与验证
 
-各 agent 的 MCP 配置位置见 README；把上面片段合并进对应配置文件（key 格式按各 agent 环境变量写法调整）。合并后重启 agent，然后运行 **`asp doctor`**——每条都会做真实握手，PASS 才算数。
+把片段合并进对应 agent 的配置文件（key 格式按各 agent 环境变量写法调整），重启 agent，然后运行 **`asp doctor`** 逐条实测握手——PASS 才算数。

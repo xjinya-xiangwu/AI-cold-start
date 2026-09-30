@@ -16,8 +16,8 @@
     "target": "~/.config/opencode/opencode.json",
     "key": "mcp",
     "template": "opencode.mcp.json",
-    "requires": "npx",
-    "note": "实测/v0.6.2 起安装器支持 json-merge：opencode.json 的 mcp 字段 {NAME:{type:local,command:[...]}}，merge 仅新增键"
+    "requires": "",
+    "note": "实测/v0.6.2 起安装器支持 json-merge：opencode.json 的 mcp 字段 {NAME:{type:local,command:[...]}}，merge 仅新增键；v0.8.0 起默认模板零服务器。另注：opencode 的 webfetch 内置可用，websearch 需 OPENCODE_ENABLE_EXA=1 环境变量（用户自行开）"
   },
   "smoke": {
     "cmd": "opencode --version"

@@ -14,8 +14,8 @@
     "target": "~/.zcode/cli/config.json",
     "key": "mcp.servers",
     "template": "zcode.mcp.json",
-    "requires": "npx",
-    "note": "实证格式：{mcp:{servers:{name:{type:'stdio',command,env,args}}}}；merge 仅新增键"
+    "requires": "",
+    "note": "实证格式：{mcp:{servers:{name:{type:'stdio',command,env,args}}}}；merge 仅新增键；v0.8.0 起默认模板零服务器（能力由 skills 承载）"
   },
   "smoke": { "cmd": "zcode --version" }
 }

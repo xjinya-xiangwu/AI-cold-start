@@ -1,8 +1,3 @@
-# asp MCP 模板（Codex TOML 格式）— 由 asp 合并到 ~/.codex/config.toml
-# v0.7.0：默认仅 context7。memory / sequential-thinking 已移入 optional-mcp.md（默认不装的决策见该文件）。
-# context7 官方有托管 HTTP 端点（https://mcp.context7.com/mcp），待 Codex 官方远程 MCP 支持稳定后切换；
-# 当前保持 stdio（依赖 npx）。Windows 提示：若 Codex 无法直接 spawn npx，改为
-#   command = "cmd"  +  args = ["/d", "/s", "/c", "npx", "-y", "@upstash/context7-mcp"]
-[mcp_servers.asp-context7]
-command = "npx"
-args = ["-y", "@upstash/context7-mcp"]
+# asp MCP 模板（Codex TOML 格式）— v0.8.0 起默认零 MCP（能力由 skills 承载，见 fresh-docs）
+# 想加回 context7 等可选增强：片段见同目录 optional-mcp.md
+# Windows 提示：若 Codex 无法直接 spawn npx，用 command = "cmd" + args = ["/d","/s","/c","npx","-y","<包名>"]

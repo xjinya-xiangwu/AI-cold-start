@@ -14,8 +14,8 @@
     "target": "~/.claude.json",
     "key": "mcpServers",
     "template": "claude-code.mcp.json",
-    "requires": "npx",
-    "note": "merge 仅新增键，不覆盖用户已有同名服务器"
+    "requires": "",
+    "note": "merge 仅新增键，不覆盖用户已有同名服务器；v0.8.0 起默认模板零服务器（能力由 skills 承载），本机制保留给可选增强与未来包使用"
   },
   "smoke": { "cmd": "claude --version" }
 }

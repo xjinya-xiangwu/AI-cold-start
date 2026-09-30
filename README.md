@@ -1,8 +1,8 @@
 # AI 冷启动包 · Agent Starter Pack
 
-> 把一套成型的「专家工作方法」——**19 个通用 skills（基础层）+ 12 个 PM 专业 skills** + 角色工作流 AGENTS.md + 零 key MCP 配置 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。**v0.6.0 起支持一键环境迁移（export/migrate，零依赖，10 个 agent 含 Trae/Qoder/WorkBuddy）**。
+> 把一套成型的「专家工作方法」——**20 个通用 skills（基础层）+ 12 个 PM 专业 skills** + 角色工作流 AGENTS.md + 可选 MCP 增强 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。**v0.6.0 起支持一键环境迁移（export/migrate，零依赖，10 个 agent 含 Trae/Qoder/WorkBuddy）**。
 
-![version](https://img.shields.io/badge/v0.5.0--tiered-2563EB) ![base](https://img.shields.io/badge/基础包--19%20skills%20%C2%A510-059669) ![ai--pm](https://img.shields.io/badge/PM专业包--12%20skills%20%C2%A519.9-8B5CF6) ![agents](https://img.shields.io/badge/agents-7-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
+![version](https://img.shields.io/badge/v0.8.0--zero--mcp-2563EB) ![base](https://img.shields.io/badge/基础包--20%20skills%20%C2%A510-059669) ![ai--pm](https://img.shields.io/badge/PM专业包--12%20skills%20%C2%A519.9-8B5CF6) ![agents](https://img.shields.io/badge/agents-10-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
 
 **问题不在 AI 不会聊天，在于它没有方法。** 同样一句「帮我写个 PRD」，裸模型给一堆正确的废话；装包后先问你 4 个关键问题，再按 12 章专业模板出稿——AI 特有章节（能力边界 / 异常流 / 评测验收 / 人机协同）一个不漏。
 
@@ -10,7 +10,7 @@
 
 | 层 | 价格 | 内容 | 适合谁 |
 |---|---|---|---|
-| **基础包 `base`** | **¥10** | 19 个跨职业通用 skills（提效 4 / 质量 4 / 规划 7 / 通用工具 4）+ 1 个零 key MCP（context7 远程端点）+ 11 条通用指令 | 任何想让 AI 按方法干活的人：开发者 / 运营 / 学生 / 自由职业 |
+| **基础包 `base`** | **¥10** | 20 个跨职业通用 skills（提效 4 / 质量 4 / 规划 7 / 通用工具 5，含 fresh-docs 文档查新）+ **零 MCP 依赖**（增强能力由 skills 承载；context7 等可选一键加）+ 11 条通用指令 | 任何想让 AI 按方法干活的人：开发者 / 运营 / 学生 / 自由职业 |
 | **PM 专业包 `ai-pm`** | **¥19.9** | 12 个 PM 专属 skills（洞察 4 / 设计 4 / AI 专项 2 / 战略 2）+ 31 条 PM 指令 + 九环 PM 工作流 | 产品经理 / 转岗 PM / AI 产品从业者 |
 | **PM 完整版（两层全装）** | **¥29.9** | 31 skills + 42 指令全套 | 同上（买 ai-pm 自动含 base） |
 
@@ -34,7 +34,7 @@
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
 - 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
-- 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化，装完不依赖外网（context7 走官方托管端点，联网可用）
+- 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化；v0.8.0 起默认零 MCP——文档查新等增强能力由 skills 指挥 agent 内置 web 工具完成，无额外运行时与端点依赖
 
 ## 快速开始
 
@@ -99,16 +99,16 @@ powershell -ExecutionPolicy Bypass -File asp.ps1 doctor     # macOS/Linux: ./asp
 
 ## 内容清单（v0.5.0 分层）
 
-### 基础包 base（19 skills，跨职业通用）
+### 基础包 base（20 skills，跨职业通用）
 
 | 类别 | skills |
 |---|---|
 | 提升开发效率 | dev-handoff · tech-spec-review · release-notes · mermaid-diagrams |
 | 保障质量 | bug-triage · post-mortem · launch-readiness · decision-premortem |
 | 规划类 | idea-grilling · assumption-audit · okr-planning · project-kickoff · risk-register · stakeholder-mapping · minimal-solution |
-| 通用工具 | meeting-to-decisions · data-insight · experiment-design · metric-design |
+| 通用工具 | meeting-to-decisions · data-insight · experiment-design · metric-design · fresh-docs（文档查新） |
 
-随包：通用版 AGENTS.md（想法拷问→规划→协作→质量→复盘 五环）+ 通用 prompts × 11 + **1 个零 key MCP**（asp-context7，官方托管远程端点——零 node 依赖、零冷启动、`asp doctor` 可实测；asp-memory / asp-sequential-thinking 自 v0.7.0 移入可选件，决策理由见 `mcp/optional-mcp.md`）
+随包：通用版 AGENTS.md（想法拷问→规划→协作→质量→复盘 五环 + 文档查新纪律）+ 通用 prompts × 11 + **零 MCP 默认**（v0.8.0：文档查新由 fresh-docs skill 指挥 agent 内置 web 工具完成；context7 / memory / sequential-thinking 全部转可选，见 `mcp/optional-mcp.md`——设计决策见 [docs/DESIGN-ZERO-MCP.md](docs/DESIGN-ZERO-MCP.md)）
 
 ### PM 专业包 ai-pm（12 skills，PM 专属）
 
@@ -168,8 +168,8 @@ AI-cold-start/
 
 - 本仓库 skills 绝大多数为原创自产
 - 少数 skill 基于 **MIT / Apache-2.0** 开源项目改造，出处与许可声明见 [packs/ai-pm/THIRD-PARTY-NOTICES.md](packs/ai-pm/THIRD-PARTY-NOTICES.md)
-- 采集纪律：**永不收录 NonCommercial（CC BY-NC / NC-SA）许可的项目**，无 license 仓库仅作思路参考
-- MCP 增强服务依赖 node/npx 运行时（skills 不依赖）；无 node 机器上 MCP 自动跳过，安装报告会如实标注
+- 采集纪律：**永不收录 NonCommercial（CC BY-NC / CC-SA）许可的项目**，无 license 仓库仅作思路参考
+- v0.8.0 起默认零 MCP（增强能力由 skills 承载，零运行时依赖）；用户自加的可选 MCP 中 npx 类仍依赖 node——无 node 机器上自动跳过，`asp doctor` 会如实标注
 
 ## 路线图
 
@@ -183,4 +183,4 @@ AI-cold-start/
 
 ## 更新日志
 
-见 [UPDATES.md](UPDATES.md) —— v0.1.0（6 skills）→ v0.2.0（15）→ v0.3.0（26）→ v0.4.0（31）→ **v0.5.0（分层：base 19 + ai-pm 12，2026-09-29）**。
+见 [UPDATES.md](UPDATES.md) —— v0.1.0（6 skills）→ v0.4.0（31）→ v0.5.0（分层：base 19 + ai-pm 12）→ v0.6.x（迁移+10 agents+适配器审计）→ v0.7.0（MCP 三件套重构+doctor）→ **v0.8.0（零 MCP 默认 + fresh-docs，2026-10-01）**。

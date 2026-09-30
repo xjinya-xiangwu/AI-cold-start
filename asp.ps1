@@ -174,7 +174,7 @@ function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$
     # 从模板提取服务器名（仅用于报告）
     $names = @()
     foreach ($m in [regex]::Matches($tplRaw, "(?m)^\s*\[mcp_servers\.([A-Za-z0-9_\-]+)\]")) { $names += $m.Groups[1].Value }
-    if ($names.Count -eq 0) { return @{ added = @(); skipped = @(); note = "模板无 [mcp_servers.*]" } }
+    if ($names.Count -eq 0) { return @{ added = @(); skipped = @(); note = "默认 0 个 MCP（增强能力由 skills 承载）——可选增强见 mcp/optional-mcp.md" } }
 
     $block = $TomlBegin + "`r`n" + $tplRaw.TrimEnd() + "`r`n" + $TomlEnd
     if (Test-Path $TargetPath) {
@@ -519,10 +519,15 @@ function Invoke-Install([string]$PackName) {
             # merge = Claude 风格 mcpServers / zcode mcp.servers；json-merge = opencode 风格 mcp 容器（Merge-McpConfig 按 key 分派）
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-McpConfig $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.key $a.mcp.requires $a.id
-            if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
-            if ($r.skipped.Count -gt 0)   { Write-Host ("    MCP 跳过(已存在): {0}" -f ($r.skipped -join ", ")) -ForegroundColor DarkGray }
-            if ($r.note)                  { Write-Host ("    MCP {0}" -f $r.note) -ForegroundColor Yellow }
-            $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
+            if ($r.added.Count -eq 0 -and $r.skipped.Count -eq 0 -and -not $r.note) {
+                Write-Host "    MCP: 默认 0 个（增强能力由 skills 承载，如 fresh-docs 文档查新）——可选增强（context7 等）见包内 mcp/optional-mcp.md" -ForegroundColor DarkGray
+                $report += ("{0}: MCP 0（默认零 MCP）" -f $a.name)
+            } else {
+                if ($r.added.Count -gt 0)     { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) }
+                if ($r.skipped.Count -gt 0)   { Write-Host ("    MCP 跳过(已存在): {0}" -f ($r.skipped -join ", ")) -ForegroundColor DarkGray }
+                if ($r.note)                  { Write-Host ("    MCP {0}" -f $r.note) -ForegroundColor Yellow }
+                $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
+            }
         } elseif ($a.mcp.strategy -eq "template-only") {
             Write-Host "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录" -ForegroundColor DarkGray
         } elseif ($a.mcp.strategy -eq "manual") {

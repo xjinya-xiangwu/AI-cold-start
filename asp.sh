@@ -336,7 +336,11 @@ do_install() {
     fi
     if [ "$mstrat" = "merge" ] && [ -d "$packdir/mcp" ]; then
       r=$(merge_mcp "$packdir/mcp/$mtmpl" "$(expand_tilde "$mtarget")" "$mkey" "$mreq")
-      echo "    MCP: $r"
+      case "$r" in
+        "added=-;skipped=-"|"added=-;skipped=-;note=")
+          echo "    MCP: 默认 0 个（增强能力由 skills 承载，如 fresh-docs 文档查新）——可选增强见包内 mcp/optional-mcp.md" ;;
+        *) echo "    MCP: $r" ;;
+      esac
     elif [ "$mstrat" = "merge" ]; then
       :  # 专业包无 mcp 目录（MCP 归属 base 包），跳过
     elif [ "$mstrat" = "manual" ]; then
