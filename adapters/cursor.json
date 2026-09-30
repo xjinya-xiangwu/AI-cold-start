@@ -15,9 +15,9 @@
     "strategy": "merge",
     "target": "~/.cursor/mcp.json",
     "key": "mcpServers",
-    "template": "claude-code.mcp.json",
-    "requires": "npx",
-    "note": "Cursor mcp.json 与 Claude 格式同构"
+    "template": "cursor.mcp.json",
+    "requires": "",
+    "note": "v0.7.0 起 context7 用 Cursor remote 格式（裸 url 键，与 Claude 的 type:http 不同构，故独立模板）；memory/sequential-thinking 已移入 optional-mcp.md"
   },
   "smoke": {
     "cmd": "cursor --version"

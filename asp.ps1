@@ -6,6 +6,7 @@
 #   asp.ps1 detect             探测本机已安装的 agent
 #   asp.ps1 agents [pack] [dir] 将包的 AGENTS.md 部署到项目目录（只给一个目录参数时自动识别，默认当前目录+已装包）
 #   asp.ps1 status             查看已装状态
+#   asp.ps1 doctor             MCP 流量灯体检：对已部署配置逐条做真实 initialize 握手（v0.7.0）
 #   asp.ps1 export [-Out x]    收集本机全部 agent 环境 -> 迁移包（零依赖）
 #   asp.ps1 migrate <包>       把迁移包还原到本机（merge 语义：只增改不删除）
 # 设计约束: 零外部依赖（仅 Windows 自带 PowerShell 5.1+；tar.gz 还原用系统自带 tar）
@@ -197,6 +198,228 @@ function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$
     }
 }
 
+# ---------- doctor：MCP 流量灯体检（v0.7.0，ONBOARDING-V2 W2 v1 提前落地）----------
+$DoctorTimeoutSec = 20
+
+function ConvertTo-McpJsonText([string]$Text) {
+    # 兼容纯 JSON 与 SSE 帧（data: {...}）
+    if ($Text -match '(?m)^\s*data:\s*(\{.+\})\s*$') { return $Matches[1] }
+    return $Text
+}
+
+function Test-McpRemote([string]$Url, $Headers) {
+    # 返回 @{ ok; warn; detail }：401/403 归 WARN（端点可达、鉴权问题在客户端配置）
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $hdrs = @{ Accept = "application/json, text/event-stream" }
+        if ($Headers) { foreach ($p in @($Headers.PSObject.Properties)) { $hdrs[$p.Name] = [string]$p.Value } }
+        $body = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"asp-doctor","version":"0.7.0"}}}'
+        $resp = Invoke-WebRequest -Uri $Url -Method Post -Body $body -ContentType "application/json" -Headers $hdrs -TimeoutSec 10 -UseBasicParsing
+        $json = (ConvertTo-McpJsonText $resp.Content) | ConvertFrom-Json
+        if ($json.result -and $json.result.serverInfo) {
+            return @{ ok = $true; warn = $false; detail = ("握手 OK · {0} {1}" -f $json.result.serverInfo.name, $json.result.serverInfo.version) }
+        }
+        return @{ ok = $false; warn = $false; detail = "响应无 serverInfo（非 MCP 端点?）" }
+    } catch {
+        $sc = $null
+        try { $sc = [int]$_.Exception.Response.StatusCode } catch {}
+        if ($sc -eq 401 -or $sc -eq 403) { return @{ ok = $false; warn = $true; detail = "端点可达但鉴权被拒（HTTP $sc）——检查 token/headers 配置" } }
+        if ($sc -eq 405) { return Test-McpSse $Url $Headers }   # POST 被拒：可能是 SSE 端点，回退 GET 探测
+        $msg = $_.Exception.Message
+        if ($msg.Length -gt 120) { $msg = $msg.Substring(0, 120) }
+        return @{ ok = $false; warn = $false; detail = "HTTP 失败: $msg" }
+    }
+}
+
+function Test-McpSse([string]$Url, $Headers) {
+    # SSE 传输（GET + event-stream）：连接建立 + 流里出现事件即视为可达
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $req = [Net.HttpWebRequest]::Create($Url)
+        $req.Method = "GET"; $req.Timeout = 8000; $req.ReadWriteTimeout = 8000
+        $req.Accept = "text/event-stream"
+        if ($Headers) { foreach ($p in @($Headers.PSObject.Properties)) { $req.Headers[[string]$p.Name] = [string]$p.Value } }
+        $resp = $req.GetResponse()
+        # 有界读（流不断开，ReadToEnd 会永远阻塞）：最多读 8KB 判断是否出现事件
+        $chunk = ""
+        try {
+            $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+            $buf = New-Object char[] 4096
+            for ($i = 0; $i -lt 2; $i++) {
+                $n = $reader.Read($buf, 0, $buf.Length)
+                if ($n -le 0) { break }
+                $chunk += (-join $buf[0..($n - 1)])
+                if ($chunk -match 'event:|data:') { break }
+            }
+        } catch {
+            $resp.Close()
+            return @{ ok = $false; warn = $true; detail = "SSE 已连上（HTTP 200）但 8s 内未读到事件帧" }
+        }
+        $resp.Close()
+        if ($chunk -match 'event:|data:') { return @{ ok = $true; warn = $false; detail = "SSE 端点可达（event-stream 正常）" } }
+        return @{ ok = $false; warn = $true; detail = "HTTP 200 但无事件流" }
+    } catch {
+        $sc = $null
+        try { $sc = [int]$_.Exception.Response.StatusCode } catch {}
+        if ($sc -eq 401 -or $sc -eq 403) { return @{ ok = $false; warn = $true; detail = "端点可达但鉴权被拒（HTTP $sc）——检查 token/headers 配置" } }
+        $msg = $_.Exception.Message
+        if ($msg.Length -gt 120) { $msg = $msg.Substring(0, 120) }
+        return @{ ok = $false; warn = $false; detail = "SSE 探测失败: $msg" }
+    }
+}
+
+function Test-McpStdio([string]$Command, [string[]]$SArgs, [string]$Requires, $EnvObj) {
+    if ($Requires -and -not (Test-Command $Requires)) { return @{ ok = $false; warn = $false; detail = "未检测到 $Requires（MCP 运行时缺失）" } }
+    # 解析为绝对可执行路径。裸 npx 有两个坑：① cmd 下会用 CWD 相对路径找 npm 而崩溃；
+    # ② PATH 里同名的无扩展名 bash 脚本会让 CreateProcess 报"非有效应用程序"——故按 PATHEXT 优先找 .cmd/.exe/.bat
+    $resolved = $Command
+    $hasExt = [System.IO.Path]::GetExtension($Command) -ne ""
+    if (-not $hasExt) {
+        foreach ($ext in @(".cmd", ".exe", ".bat")) {
+            $g = Get-Command ($Command + $ext) -ErrorAction SilentlyContinue
+            if ($g -and $g.Source) { $resolved = $g.Source; break }
+        }
+    } else {
+        $g = Get-Command $Command -ErrorAction SilentlyContinue
+        if ($g -and $g.Source) { $resolved = $g.Source }
+    }
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $resolved
+    $psi.Arguments = ($SArgs -join " ")
+    $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+    $psi.RedirectStandardInput = $true; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
+    if ($EnvObj) { foreach ($p2 in @($EnvObj.PSObject.Properties)) { try { $psi.EnvironmentVariables[[string]$p2.Name] = [string]$p2.Value } catch {} } }
+    $p = $null
+    try { $p = [System.Diagnostics.Process]::Start($psi) }
+    catch {
+        return @{ ok = $false; warn = $false; detail = "无法启动: $resolved（$($_.Exception.Message)）" }
+    }
+    $outSb = New-Object System.Text.StringBuilder
+    $errSb = New-Object System.Text.StringBuilder
+    $subOut = Register-ObjectEvent -InputObject $p -EventName OutputDataReceived -MessageData $outSb -Action { if ($EventArgs.Data) { $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null } }
+    $subErr = Register-ObjectEvent -InputObject $p -EventName ErrorDataReceived -MessageData $errSb -Action { if ($EventArgs.Data) { $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null } }
+    $p.BeginOutputReadLine(); $p.BeginErrorReadLine()
+    # 像真实客户端一样写 initialize 并保持 stdin 打开——立即 EOF 会让 server 赶在写出响应前退出
+    $p.StandardInput.WriteLine('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"asp-doctor","version":"0.7.0"}}}')
+    $p.StandardInput.Flush()
+    $deadline = (Get-Date).AddSeconds($DoctorTimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Milliseconds 200   # 泵事件，让 OutputDataReceived 进缓冲
+        $cur = $outSb.ToString()
+        if ($cur -match '"id"\s*:\s*1' -and $cur -match 'serverInfo') { break }
+        if ($p.HasExited) { Start-Sleep -Milliseconds 300; break }
+    }
+    if (-not $p.HasExited) { try { & taskkill /PID $p.Id /T /F 2>&1 | Out-Null } catch { try { $p.Kill() } catch {} } }
+    Start-Sleep -Milliseconds 200
+    Unregister-Event -SubscriptionId $subOut.Id -ErrorAction SilentlyContinue
+    Unregister-Event -SubscriptionId $subErr.Id -ErrorAction SilentlyContinue
+    try {
+        $json = (ConvertTo-McpJsonText $outSb.ToString()) | ConvertFrom-Json
+        if ($json.result -and $json.result.serverInfo) {
+            return @{ ok = $true; warn = $false; detail = ("握手 OK · {0} {1}" -f $json.result.serverInfo.name, $json.result.serverInfo.version) }
+        }
+    } catch { }
+    # 错误行提取：优先含 Error 的行（比 stderr 末行的 Node 版本号/调用栈更有诊断价值）
+    $errLines = @($errSb.ToString() -split "`r?`n" | Where-Object { $_ -match '\S' })
+    $errPick = @($errLines | Where-Object { $_ -match 'Error|错误|找不到' } | Select-Object -Last 1)
+    $tail = if ($errPick) { [string]$errPick[0] } elseif ($errLines) { [string]$errLines[-1] } else { "" }
+    if ($tail.Length -gt 140) { $tail = $tail.Substring(0, 140) }
+    return @{ ok = $false; warn = $false; detail = ("无 initialize 响应{0}" -f ($(if ($tail) { "：$tail" } else { "（stdout 空）" }))) }
+}
+
+function Get-DoctorEntries([object]$Adapter) {
+    # 从已部署配置提取可测条目：@{ name; url; headers } 或 @{ name; command; args }
+    $entries = @()
+    $targetPath = Expand-Tilde $Adapter.mcp.target
+    if (-not (Test-Path $targetPath)) { return $entries }
+    if ($Adapter.mcp.strategy -eq "toml-managed") {
+        $raw = [System.IO.File]::ReadAllText($targetPath)
+        if ($raw -notmatch [regex]::Escape($TomlBegin)) { return $entries }
+        $block = [regex]::Match($raw, "(?s)" + [regex]::Escape($TomlBegin) + "(.*?)" + [regex]::Escape($TomlEnd)).Groups[1].Value
+        foreach ($m in [regex]::Matches($block, "(?ms)^\s*\[mcp_servers\.([A-Za-z0-9_\-]+)\]\s*command\s*=\s*`"([^`"]+)`"\s*args\s*=\s*\[([^\]]*)\]")) {
+            $targs = @(); foreach ($am in [regex]::Matches($m.Groups[3].Value, "`"([^`"]+)`"")) { $targs += $am.Groups[1].Value }
+            $entries += @{ name = $m.Groups[1].Value; command = $m.Groups[2].Value; args = $targs }
+        }
+        return $entries
+    }
+    try { $cfg = Get-Content $targetPath -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return $entries }
+    $container = $null
+    if ($Adapter.mcp.key -eq "mcpServers")      { $container = $cfg.mcpServers }
+    elseif ($Adapter.mcp.key -eq "mcp")         { $container = $cfg.mcp }
+    elseif ($Adapter.mcp.key -eq "mcp.servers") { $container = $cfg.mcp.servers }
+    if (-not $container) { return $entries }
+    foreach ($p in @($container.PSObject.Properties)) {
+        $e = $p.Value
+        if ($e -isnot [PSCustomObject]) { continue }
+        if ($e.PSObject.Properties["url"] -and $e.url) {
+            $etype = ""; if ($e.PSObject.Properties["type"] -and $e.type) { $etype = [string]$e.type }
+            $entries += @{ name = $p.Name; url = [string]$e.url; type = $etype; headers = $e.PSObject.Properties["headers"] }
+        } elseif ($e.PSObject.Properties["command"] -and $e.command) {
+            # opencode 等：command 为数组（[0]=可执行，其余=args）；Claude 风格：command 字符串 + args
+            $cmdVal = $e.command
+            if ($cmdVal -is [System.Array]) {
+                if ($cmdVal.Count -eq 0) { continue }
+                $eargs = @(); if ($cmdVal.Count -gt 1) { $eargs = @($cmdVal[1..($cmdVal.Count - 1)]) }
+                $eenv = $null; if ($e.PSObject.Properties["env"] -and $e.env) { $eenv = $e.env }
+                $entries += @{ name = $p.Name; command = [string]$cmdVal[0]; args = $eargs; env = $eenv }
+            } else {
+                $eargs = @(); if ($e.PSObject.Properties["args"] -and $e.args) { $eargs = @($e.args) }
+                $eenv = $null; if ($e.PSObject.Properties["env"] -and $e.env) { $eenv = $e.env }
+                $entries += @{ name = $p.Name; command = [string]$cmdVal; args = $eargs; env = $eenv }
+            }
+        }
+    }
+    return $entries
+}
+
+function Invoke-Doctor {
+    Write-Host "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）"
+    $agents = Find-Agents
+    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+    Write-Host ("[doctor] 检测到 {0} 个 agent 配置面，开始体检..." -f $agents.Count)
+    $pass = 0; $fail = 0; $skip = 0
+    $rows = @()
+    foreach ($a in $agents) {
+        if (-not $a.mcp -or -not $a.mcp.target) { continue }
+        $strategy = [string]$a.mcp.strategy
+        if ($strategy -eq "none" -or $strategy -eq "template-only") { continue }
+        if ($strategy -eq "manual") {
+            $rows += [pscustomobject]@{ Agent = $a.name; Server = "-"; 结果 = "SKIP"; 说明 = "manual 端：在设置界面添加，见 README" }
+            $skip++
+            continue
+        }
+        $targetPath = Expand-Tilde $a.mcp.target
+        if (-not (Test-Path $targetPath)) {
+            $rows += [pscustomobject]@{ Agent = $a.name; Server = "-"; 结果 = "SKIP"; 说明 = "配置未部署（先运行 install）" }
+            $skip++
+            continue
+        }
+        $entries = Get-DoctorEntries $a
+        if ($entries.Count -eq 0) {
+            $rows += [pscustomobject]@{ Agent = $a.name; Server = "-"; 结果 = "SKIP"; 说明 = "配置中无可测条目" }
+            $skip++
+            continue
+        }
+        foreach ($e in $entries) {
+            if ($e.url) {
+                if ($e.type -eq "sse") { $r = Test-McpSse $e.url $e.headers }
+                else { $r = Test-McpRemote $e.url $e.headers }
+            }
+            else { $r = Test-McpStdio $e.command @($e.args) ([string]$a.mcp.requires) $e.env }
+            if ($r.ok) { $pass++; $mark = "PASS" } elseif ($r.warn) { $skip++; $mark = "WARN" } else { $fail++; $mark = "FAIL" }
+            $rows += [pscustomobject]@{ Agent = $a.name; Server = $e.name; 结果 = $mark; 说明 = $r.detail }
+        }
+    }
+    Write-Host ""
+    $rows | Format-Table -AutoSize | Out-String -Width 220 | Write-Host
+    Write-Host ("[doctor 汇总] PASS {0} · FAIL {1} · SKIP {2}" -f $pass, $fail, $skip)
+    if ($fail -gt 0) {
+        Write-Host "存在 FAIL：配置写了 ≠ 能用。修复指引见 README『MCP 体检』与 packs/base/mcp/optional-mcp.md；npx 冷启动超时可重跑确认。" -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "全绿 ✓（MCP 零报错率口径：PASS / (PASS+FAIL)）" -ForegroundColor Green
+}
+
 # ---------- 引导面板（未检测到任何 agent）----------
 function Show-Guide {
     Write-Host ""
@@ -281,6 +504,15 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: rules {1}" -f $a.name, $r)
         }
 
+        # 2.5) 探测诚实化（v0.7.0）：目录特征命中但可执行文件不在 PATH——可能是迁移残留而非真实安装
+        if ($a.smoke -and $a.smoke.cmd) {
+            $exe = ($a.smoke.cmd -split '\s+')[0]
+            if ($exe -and -not (Test-Command $exe)) {
+                Write-Host ("    ⚠ 未在 PATH 检测到 '{0}'——本机可能只有该 agent 的配置残留（如迁移恢复）而未真正安装；已按目录特征部署，真正安装后生效" -f $exe) -ForegroundColor Yellow
+                $report += ("{0}: ⚠ 可执行文件未检出（疑似仅配置残留）" -f $a.name)
+            }
+        }
+
         # 3) MCP（专业包无 mcp 目录时跳过，MCP 归属 base 包）
         $hasMcp = Test-Path (Join-Path $packDir "mcp")
         if (($a.mcp.strategy -eq "merge" -or $a.mcp.strategy -eq "json-merge") -and $hasMcp) {
@@ -293,6 +525,10 @@ function Invoke-Install([string]$PackName) {
             $report += ("{0}: MCP +{1}" -f $a.name, $r.added.Count)
         } elseif ($a.mcp.strategy -eq "template-only") {
             Write-Host "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录" -ForegroundColor DarkGray
+        } elseif ($a.mcp.strategy -eq "manual") {
+            # v0.7.0：该端配置文件不在其 MCP 加载面（实测证据见 adapter note）——不写配置，给出手动路径
+            Write-Host "    MCP: 该端需在设置界面手动添加（配置文件不在加载面）——context7 远程端点: https://mcp.context7.com/mcp" -ForegroundColor DarkGray
+            $report += ("{0}: MCP manual（设置界面添加）" -f $a.name)
         } elseif ($a.mcp.strategy -eq "toml-managed" -and $hasMcp) {
             $tplFile = Join-Path $packDir ("mcp/" + $a.mcp.template)
             $r = Merge-TomlManaged $tplFile (Expand-Tilde $a.mcp.target) $a.mcp.requires $a.id
@@ -732,7 +968,8 @@ switch ($Command.ToLower()) {
         if (Test-Path $StateFile) { Get-Content $StateFile -Raw -Encoding UTF8 }
         else { Write-Host "尚未安装任何包。" }
     }
+    "doctor"  { Invoke-Doctor }
     "export"  { Invoke-Export $Out }
     "migrate" { Invoke-Migrate $Pack $All.IsPresent $DryRun.IsPresent }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|export|migrate] [pack]"; exit 1 }
+    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate] [pack]"; exit 1 }
 }

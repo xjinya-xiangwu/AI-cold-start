@@ -1,18 +1,18 @@
 {
   "id": "workbuddy",
   "name": "WorkBuddy",
-  "version": "0.2",
+  "version": "0.3",
   "detect": ["~/.workbuddy"],
   "skills_dir": "~/.workbuddy/skills",
-  "note": "国内主流 agent。真实布局已实测（2026-09-30，Win11）：加载 ~/.workbuddy/ 下 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/ + 工作区 .workbuddy/memory/；AGENTS.md 不在加载链——因此角色/工作流内容以 managed-section 部署进 SOUL.md，而不是建 AGENTS.md。",
+  "note": "国内主流 agent。加载链实测（2026-09-30，Win11）：加载 ~/.workbuddy/ 下 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/ + 工作区 .workbuddy/memory/；AGENTS.md 不在加载链——因此角色/工作流内容以 managed-section 部署进 SOUL.md，而不是建 AGENTS.md。",
   "instructions": { "mode": "managed-section", "target": "~/.workbuddy/SOUL.md" },
   "mcp": {
-    "strategy": "merge",
+    "strategy": "manual",
     "target": "~/.workbuddy/mcp.json",
     "key": "mcpServers",
     "template": "claude-code.mcp.json",
-    "requires": "npx",
-    "note": "实测为 Claude 风格 mcpServers；merge 只增新键，用户已有 server 一律不动"
+    "requires": "",
+    "note": "v0.7.0 降级为 manual（v0.6.1 的 merge 结论被证伪）：实测 ~/.workbuddy/mcp.json 不是当前版本（CodeBuddy 内核 2.147）的 MCP 加载面——真实加载面为每会话生成的 agent-cli-mcp-config/<sessionId>.mcp-config.json（connector-proxy 网关 + UI 管理的 custom-mcp）；mcp.json 中既有条目（含 v0.6.1 写入的 asp-* 三件套，以及更早的 lark/huggingface 等）在工具注册表全部零命中。改为安装报告引导用户在 WorkBuddy 设置界面手动添加 custom MCP（remote: https://mcp.context7.com/mcp）。migrate 仍收集 mcp.json（还原用户自有配置不受影响）。"
   },
   "migrate": {
     "files": ["~/.workbuddy/settings.json", "~/.workbuddy/IDENTITY.md", "~/.workbuddy/USER.md"],

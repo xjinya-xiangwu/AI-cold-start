@@ -1,5 +1,30 @@
 # UPDATES
 
+## v0.7.0（2026-10-01）— MCP 三件套重构：能力位收缩 + 远程端点 + doctor 体检
+
+**背景**：kurtx 协同机全链路诊断发现——v0.6.1 写入 WorkBuddy 的 asp-* 三件套**全部未生效**（`~/.workbuddy/mcp.json` 不在其加载面，工具注册表零命中）；asp-memory 的 npx 缓存损坏导致启动即崩；context7 / sequential-thinking 包本身健康但所在配置面失效。诊断与决策过程见 SIAE broadcast log（2026-10-01 kurtx/ZCode 条目）。
+
+**选型重构（从「三个 npm 包」改为「能力位」视角）**
+
+- **context7 切官方托管远程端点** `https://mcp.context7.com/mcp`（零 key 握手实测通过）：claude-code / opencode / zcode 模板改 remote HTTP，Cursor 用独立模板 `cursor.mcp.json`（remote 格式裸 `url` 键，与 Claude 的 `type:http` 不同构）——零 node/npx 依赖、零冷启动、零 npx 缓存损坏面
+- **asp-memory / asp-sequential-thinking 默认不装**，移入 `optional-mcp.md` 并附决策理由：2026 主流 agent 均有原生记忆（能力重叠）、官方定位为参考实现非生产级、sequential-thinking 被模型内置 thinking 覆盖、memory 数据默认落 npx 缓存目录属数据安全隐患（可选时显式 `MEMORY_FILE_PATH` 指向 `~/.asp/data/`）
+- Codex 模板保持 stdio npx（官方远程 MCP 支持稳定后再切），头部补 Windows spawn 兜底说明（`cmd /d /s /c npx ...`）
+
+**WorkBuddy 适配器 v0.2 → v0.3（v0.6.1 的 MCP 结论被证伪）**
+
+- 实测 `~/.workbuddy/mcp.json` 不是当前版本（CodeBuddy 内核 2.147）的 MCP 加载面——真实加载面为每会话生成的 `agent-cli-mcp-config/<sessionId>.mcp-config.json`（connector-proxy 网关 + UI 管理的 custom-mcp）；mcp.json 中既有条目（含 asp-* 三件套与更早的 lark/huggingface）在工具注册表**全部零命中**
+- `mcp.strategy: merge → manual`：安装报告改为引导用户在设置界面添加 custom MCP（context7 远程端点）；skills / SOUL.md 托管段不受影响；migrate 仍收集 mcp.json（还原用户自有配置）
+
+**安装器增强**
+
+- **新增 `asp doctor`**（ONBOARDING-V2 W2「流量灯体检」v1 提前落地，PowerShell + bash 双端）：对全部已部署 MCP 条目做真实 initialize 握手——remote=HTTP POST（SSE 型自动回退 GET，401/403 归 WARN 不算 FAIL），stdio=拉起进程、保持 stdin 管道写 initialize 收响应；输出 PASS/WARN/FAIL/SKIP 健康表，任一 FAIL 退出码 1（可挂 CI）。**安装终点从「配置写入」升级为「握手验证」**——MCP 零报错率（§9 指标）自此有了测量仪器
+- doctor 实测本机 6 个配置面 32 条：PASS 20 / FAIL 8 / SKIP 4，每条 FAIL 均给出可行动诊断（含准确定位 asp-memory 的损坏缓存路径）
+- 探测诚实化：目录特征命中但 smoke 可执行文件不在 PATH 时，安装报告标注「疑似仅配置残留」
+
+**升级注意**：遵循「只增不覆盖」，已装机器的 asp-memory / asp-sequential-thinking 条目**不会**被自动删除；想收敛请手动移除。bash 端 doctor 为镜像实现，待 mac/linux 实测（对齐 ONBOARDING-V2 W4 CI 矩阵）。
+
+---
+
 ## v0.6.2（2026-09-30）— 全量适配器审计：修复 Cursor / opencode 两处静默失效
 
 v0.6.1 修 WorkBuddy 后对全部 10 个适配器做了同主题审计（声明的能力 vs 安装器真实分派 vs agent 实际加载链），又发现两处同类问题——**适配器声明了模式，但 install 分派里没有对应代码路径，静默跳过**：

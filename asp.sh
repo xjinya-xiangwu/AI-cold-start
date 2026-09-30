@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =====================================================================
 # asp.sh - AI 冷启动包 (Agent Starter Pack) 安装/更新器 + 环境迁移 (macOS / Linux)
-# 用法: ./asp.sh [install|update|detect|agents|status|export|migrate] [pack] [dir]
+# 用法: ./asp.sh [install|update|detect|agents|status|doctor|export|migrate] [pack] [dir]
 # 依赖: bash + curl/unzip/tar/sha256sum（系统自带）+ python3（JSON 处理）
 # =====================================================================
 set -euo pipefail
@@ -60,6 +60,30 @@ PYEOF
 hash_file() { # $1=路径 -> sha256（sha256sum 优先，mac 回退 shasum）
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
   else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+
+read_smoke() { # $1=adapter id -> 输出 smoke.cmd（无则空）
+  py - "$ROOT/adapters" "$1" <<'PYEOF'
+import json, sys, glob, os
+for f in sorted(glob.glob(os.path.join(sys.argv[1], "*.json"))):
+    a = json.load(open(f, encoding="utf-8"))
+    if a.get("id") == sys.argv[2] and (a.get("smoke") or {}).get("cmd"):
+        print(a["smoke"]["cmd"]); break
+PYEOF
+}
+
+# 带 timeout 的运行（macOS 无 GNU timeout 时用后台 kill 兜底）
+run_with_timeout() { # $1=秒 $2...=命令
+  local t="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$t" "$@"
+  else
+    "$@" & local wp=$!
+    ( sleep "$t"; kill "$wp" 2>/dev/null ) & local kp=$!
+    local rc=0; wait "$wp" || rc=$?
+    kill "$kp" 2>/dev/null || true
+    return $rc
+  fi
 }
 
 detect_agents() {
@@ -125,6 +149,145 @@ print(f"added={','.join(added) or '-'};skipped={','.join(skipped) or '-'}")
 PYEOF
 }
 
+# ---------- doctor：MCP 流量灯体检（v0.7.0，ONBOARDING-V2 W2 v1 提前落地）----------
+DOCTOR_TIMEOUT=20
+
+mcp_parse_response() { # $1=响应文件 $2=err文件 -> echo "PASS|detail" / "WARN|detail" / "FAIL|detail"
+  py - "$1" "$2" <<'PYEOF'
+import sys, re, json
+t = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m = re.search(r'^\s*data:\s*(\{.+\})\s*$', t, re.M)
+if m: t = m.group(1)
+try:
+    si = json.loads(t)["result"]["serverInfo"]
+    print("PASS|握手 OK · %s %s" % (si.get("name", ""), si.get("version", "")))
+except Exception:
+    try:
+        lines = [l for l in open(sys.argv[2], encoding="utf-8", errors="replace").read().splitlines() if l.strip()]
+        errs = [l for l in lines if re.search(r"Error|错误|找不到")]
+        tail = (errs[-1] if errs else (lines[-1] if lines else ""))[:140]
+        print("FAIL|无 initialize 响应" + ("：" + tail if tail else "（stdout 空）"))
+    except Exception:
+        print("FAIL|无 initialize 响应")
+PYEOF
+}
+
+test_mcp_remote() { # $1=url
+  local body='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"asp-doctor","version":"0.7.0"}}}'
+  local d; d="$(mktemp -d)"
+  local code
+  code=$(curl -s -m 10 -X POST "$1" -H "Content-Type: application/json" \
+       -H "Accept: application/json, text/event-stream" -d "$body" -o "$d/out" -w '%{http_code}' 2>/dev/null)
+  if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+    echo "WARN|端点可达但鉴权被拒（HTTP $code）——检查 token/headers 配置"; rm -rf "$d"; return
+  fi
+  if [ "$code" = "405" ]; then rm -rf "$d"; test_mcp_sse "$1"; return; fi
+  if [ -z "$code" ] || [ "$code" = "000" ]; then
+    echo "FAIL|HTTP 请求失败"; rm -rf "$d"; return
+  fi
+  : > "$d/err"; mcp_parse_response "$d/out" "$d/err"; rm -rf "$d"
+}
+
+test_mcp_sse() { # $1=url（GET event-stream）
+  local d; d="$(mktemp -d)"
+  # curl 超时（exit 28）时已收到的数据仍会写入 -o 文件，借此判断是否出现事件帧
+  curl -s -m 6 -H "Accept: text/event-stream" "$1" -o "$d/out" 2>/dev/null
+  if grep -q 'event:\|data:' "$d/out" 2>/dev/null; then
+    echo "PASS|SSE 端点可达（event-stream 正常）"
+  elif [ -s "$d/out" ]; then
+    echo "WARN|HTTP 已连上但未读到事件帧"
+  else
+    echo "FAIL|SSE 探测失败（超时/连接失败）"
+  fi
+  rm -rf "$d"
+}
+
+test_mcp_stdio() { # $1=command $2=args串 $3=requires
+  [ -n "$3" ] && ! command -v "$3" >/dev/null 2>&1 && { echo "FAIL|未检测到 $3（MCP 运行时缺失）"; return; }
+  local d; d="$(mktemp -d)"
+  printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"asp-doctor","version":"0.7.0"}}}' > "$d/in"
+  local rc=0
+  # 模拟真实客户端：喂 init 后保持管道 2s 再 EOF（立即 EOF 会赶在响应写出前终止 server）
+  { cat "$d/in"; sleep 2; } | run_with_timeout "$DOCTOR_TIMEOUT" bash -c "$1 $2 >'$d/out' 2>'$d/err'" || rc=$?
+  if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    rm -rf "$d"; echo "FAIL|启动超时（>${DOCTOR_TIMEOUT}s）——npx 首次冷启动可能超限时，重跑 asp doctor 通常即过"; return
+  fi
+  mcp_parse_response "$d/out" "$d/err"; rm -rf "$d"
+}
+
+do_doctor() {
+  echo "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）"
+  local found; found="$(detect_agents)"
+  [ -z "$found" ] && { show_guide; exit 0; }
+  local pass=0 fail=0 skip=0
+  while IFS='|' read -r id name skills_dir imode itarget ifname mstrat mtarget mkey mtmpl mreq; do
+    [ -z "$id" ] && continue
+    case "$mstrat" in
+      merge|json-merge|toml-managed) ;;
+      manual)
+        echo "  $name · - · SKIP · manual 端：在设置界面添加，见 README"; skip=$((skip+1)); continue ;;
+      *) continue ;;
+    esac
+    local tgt; tgt="$(expand_tilde "$mtarget")"
+    if [ ! -f "$tgt" ]; then echo "  $name · - · SKIP · 配置未部署（先 install）"; skip=$((skip+1)); continue; fi
+    local n_entries=0
+    while IFS=$'\t' read -r sname stype sval sargs; do
+      [ -z "${sname:-}" ] && continue
+      n_entries=$((n_entries+1))
+      local r
+      if [ "$stype" = "sse" ]; then r="$(test_mcp_sse "$sval")"
+      elif [ "$stype" = "remote" ]; then r="$(test_mcp_remote "$sval")"
+      else r="$(test_mcp_stdio "$sval" "$sargs" "$mreq")"; fi
+      local mark="${r%%|*}" detail="${r#*|}"
+      echo "  $name · $sname · $mark · $detail"
+      case "$mark" in
+        PASS) pass=$((pass+1)) ;;
+        FAIL) fail=$((fail+1)) ;;
+        *) skip=$((skip+1)) ;;
+      esac
+    done < <(py - "$tgt" "$mstrat" "$mkey" <<'PYEOF'
+import json, re, sys
+path, strat, key = sys.argv[1], sys.argv[2], sys.argv[3]
+def out(name, typ, val, args=""): print("\t".join([name, typ, val, args]))
+if strat == "toml-managed":
+    t = open(path, encoding="utf-8").read()
+    m = re.search(r"# >>> asp:mcp:begin >>>(.*?)# <<< asp:mcp:end <<<", t, re.S)
+    if not m: raise SystemExit(0)
+    for sec in re.finditer(r"\[mcp_servers\.([\w\-]+)\]\s*command\s*=\s*\"([^\"]+)\"\s*args\s*=\s*\[([^\]]*)\]", m.group(1)):
+        args = " ".join(re.findall(r"\"([^\"]+)\"", sec.group(3)))
+        out(sec.group(1), "stdio", sec.group(2), args)
+    raise SystemExit(0)
+cfg = json.load(open(path, encoding="utf-8"))
+c = cfg
+for k in key.split("."):
+    c = (c or {}).get(k, {}) if isinstance(c, dict) else {}
+if not isinstance(c, dict): raise SystemExit(0)
+for name, e in c.items():
+    if not isinstance(e, dict): continue
+    if e.get("url"):
+        out(name, str(e.get("type") or "remote"), e["url"])
+    elif e.get("command"):
+        cmd = e["command"]
+        if isinstance(cmd, list):
+            if not cmd: continue
+            args = " ".join(str(a) for a in cmd[1:])
+            out(name, "stdio", str(cmd[0]), args)
+        else:
+            args = e.get("args") or []
+            if isinstance(args, list): out(name, "stdio", str(cmd), " ".join(str(a) for a in args))
+PYEOF
+)
+    [ "$n_entries" -eq 0 ] && { echo "  $name · - · SKIP · 配置中无可测条目"; skip=$((skip+1)); }
+  done <<< "$found"
+  echo "---------------------------------------"
+  echo "[doctor 汇总] PASS $pass · FAIL $fail · SKIP $skip"
+  if [ "$fail" -gt 0 ]; then
+    echo "存在 FAIL：配置写了 ≠ 能用。修复指引见 README『MCP 体检』与 packs/base/mcp/optional-mcp.md；npx 冷启动超时可重跑确认。"
+    exit 1
+  fi
+  echo "全绿 ✓（MCP 零报错率口径：PASS / (PASS+FAIL)）"
+}
+
 show_guide() {
   echo "  未检测到任何受支持的 AI agent。安装任一后重新运行本包即可："
   echo "    Claude Code       https://claude.com/product/claude-code"
@@ -165,11 +328,19 @@ do_install() {
     elif [ "$imode" = "workspace" ]; then
       echo "    AGENTS.md: workspace 级，稍后运行 './asp.sh agents <项目目录>' 部署"
     fi
+    # 探测诚实化（v0.7.0）：目录特征命中但可执行文件不在 PATH——可能是迁移残留而非真实安装
+    local smoke_cmd; smoke_cmd="$(read_smoke "$id" 2>/dev/null || true)"
+    if [ -n "$smoke_cmd" ]; then
+      local exe="${smoke_cmd%% *}"
+      command -v "$exe" >/dev/null 2>&1 || echo "    ⚠ 未在 PATH 检测到 '$exe'——本机可能只有该 agent 的配置残留（如迁移恢复）而未真正安装；已按目录特征部署，真正安装后生效"
+    fi
     if [ "$mstrat" = "merge" ] && [ -d "$packdir/mcp" ]; then
       r=$(merge_mcp "$packdir/mcp/$mtmpl" "$(expand_tilde "$mtarget")" "$mkey" "$mreq")
       echo "    MCP: $r"
     elif [ "$mstrat" = "merge" ]; then
       :  # 专业包无 mcp 目录（MCP 归属 base 包），跳过
+    elif [ "$mstrat" = "manual" ]; then
+      echo "    MCP: 该端需在设置界面手动添加（配置文件不在加载面）——context7 远程端点: https://mcp.context7.com/mcp"
     elif [ "$mstrat" = "template-only" ]; then
       echo "    MCP: 该 agent 默认不启用 MCP，模板与启用步骤见包内 mcp/ 目录"
     fi
@@ -554,7 +725,8 @@ case "$COMMAND" in
   agents)  do_agents "$PACK" "$TARGET_DIR" ;;
   list)    for d in "$ROOT"/packs/*/; do n=$(find "$d/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l); echo "  $(basename "$d")  $n skills"; done ;;
   status)  [ -f "$STATE_FILE" ] && cat "$STATE_FILE" || echo "尚未安装任何包。" ;;
+  doctor)  do_doctor ;;
   export)  do_export "$PACK" ;;
   migrate) do_migrate "$PACK" ;;
-  *) echo "用法: ./asp.sh [install|update|detect|agents|list|status|export|migrate] [pack] [dir]"; exit 1 ;;
+  *) echo "用法: ./asp.sh [install|update|detect|agents|list|status|doctor|export|migrate] [pack] [dir]"; exit 1 ;;
 esac

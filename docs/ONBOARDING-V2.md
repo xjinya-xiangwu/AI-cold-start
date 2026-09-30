@@ -48,6 +48,8 @@
 
 ### (a) `asp doctor`——流量灯体检（v1，先做）
 
+> **状态（2026-10-01，v0.7.0）**：v1 的 MCP 部分已提前落地——`asp doctor` 对已部署配置逐条做真实 initialize 握手（remote POST/SSE GET、stdio 拉进程），四色简化为 PASS / WARN（鉴权被拒）/ FAIL / SKIP，任一 FAIL 退出码 1。缺 key 深链、OAuth 顺序点击流、周更增量复检仍属本节后续范围。
+
 - 安装完成自动运行；对每个 pack × MCP 依赖出四色面板：
   - ✅ **可用**：实测调用一次该 MCP 的廉价工具，「配置了」≠「可用」，绿灯必须来自实测；
   - 🔑 **缺 key**：粘贴即写入正确位置（config/env，按 adapter 规则）；

@@ -1,14 +1,14 @@
 {
     "schema":  "asp-registry/0.2",
-    "generated_at":  "2026-09-29T16:57:59Z",
-    "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。GitHub Pages 主源已上线（zip 随仓库分发 registry/packs/）；OSS 开通后替换 mirrors[1] 并换回首位。",
+    "generated_at":  "2026-10-01T03:30:00Z",
+    "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。GitHub Pages 主源已上线（zip 随仓库分发 registry/packs/）；OSS 开通后替换 mirrors[1] 并换回首位。v0.7.0 起 mcp_defaults 收敛为 context7（远程端点）；v0.7.0 的 zip/sha256 待发版由 scripts/build-release 重新打包生成，此前 update 会安全中止（哈希为空不通过）。",
     "mirrors":  [
                     "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
                     "https://REPLACE-OSS-BUCKET.oss-cn-shanghai.aliyuncs.com/asp/registry"
                 ],
     "packs":  {
                   "base":  {
-                               "version":  "v0.5.1",
+                               "version":  "v0.7.0",
                                "display_name":  "AI 冷启动包 · 基础包（跨职业通用）",
                                "price_note":  "10 元档",
                                "requires":  [
@@ -45,16 +45,15 @@
                                                                   ]
                                                      },
                                "mcp_defaults":  [
-                                                    "context7",
-                                                    "memory",
-                                                    "sequential-thinking"
+                                                    "context7"
                                                 ],
                                "prompts_count":  11,
-                               "zip":  "packs/base-v0.5.1.zip",
-                               "sha256":  "1cc6907c32f8bc997567c195b3e3da96fa34c7a327aa680a537d70a4ee113ffe"
+                               "zip":  "packs/base-v0.7.0.zip",
+                               "sha256":  "",
+                               "sha256_note":  "待发版重新打包生成（v0.7.0 为模板/适配器/doctor 重构提交，未切 release 包；sha 为空时 update 哈希校验必然失败从而安全中止）"
                            },
                   "ai-pm":  {
-                                "version":  "v0.5.1",
+                                "version":  "v0.7.0",
                                 "display_name":  "AI 冷启动包 · AI 产品经理专业包",
                                 "price_note":  "19.9 元档（含基础包合计 29.9）",
                                 "requires":  [
@@ -84,8 +83,9 @@
                                                                     ]
                                                       },
                                 "prompts_count":  31,
-                                "zip":  "packs/ai-pm-v0.5.1.zip",
-                                "sha256":  "e1f87899743dc13377fdf572f46e3f52ae92331552b965f3e533f71577c07c3b"
+                                "zip":  "packs/ai-pm-v0.7.0.zip",
+                                "sha256":  "",
+                                "sha256_note":  "待发版重新打包生成（同 base）"
                             }
               },
     "adapters":  {
@@ -106,8 +106,8 @@
                                    "changelog":  "toml-managed 真机实测"
                                },
                      "cursor":  {
-                                    "version":  "0.2",
-                                    "changelog":  "真机写入实测"
+                                    "version":  "0.3",
+                                    "changelog":  "v0.7.0 context7 切 remote（独立 cursor.mcp.json 模板）"
                                 },
                      "opencode":  {
                                       "version":  "0.2",
@@ -116,6 +116,10 @@
                      "kimi":  {
                                   "version":  "0.2",
                                   "changelog":  "真机实测（Kimi Claw openclaw 路径）"
-                              }
+                              },
+                     "workbuddy":  {
+                                       "version":  "0.3",
+                                       "changelog":  "v0.7.0 mcp.json 判定非加载面（实测），MCP 降级 manual + 设置界面引导"
+                                   }
                  }
 }

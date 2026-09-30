@@ -10,7 +10,7 @@
 
 | 层 | 价格 | 内容 | 适合谁 |
 |---|---|---|---|
-| **基础包 `base`** | **¥10** | 19 个跨职业通用 skills（提效 4 / 质量 4 / 规划 7 / 通用工具 4）+ 3 个零 key MCP + 11 条通用指令 | 任何想让 AI 按方法干活的人：开发者 / 运营 / 学生 / 自由职业 |
+| **基础包 `base`** | **¥10** | 19 个跨职业通用 skills（提效 4 / 质量 4 / 规划 7 / 通用工具 4）+ 1 个零 key MCP（context7 远程端点）+ 11 条通用指令 | 任何想让 AI 按方法干活的人：开发者 / 运营 / 学生 / 自由职业 |
 | **PM 专业包 `ai-pm`** | **¥19.9** | 12 个 PM 专属 skills（洞察 4 / 设计 4 / AI 专项 2 / 战略 2）+ 31 条 PM 指令 + 九环 PM 工作流 | 产品经理 / 转岗 PM / AI 产品从业者 |
 | **PM 完整版（两层全装）** | **¥29.9** | 31 skills + 42 指令全套 | 同上（买 ai-pm 自动含 base） |
 
@@ -26,14 +26,15 @@
 
 ## 特性
 
-- 🔍 **自动探测**：识别本机已装的 AI agent，有几个装几个，装完输出报告
+- 🔍 **自动探测**：识别本机已装的 AI agent，有几个装几个，装完输出报告；可执行文件不在 PATH 时如实标注「疑似仅配置残留」
 - 🧩 **一键安装**：Windows 双击 `setup.bat`，全程中文提示
+- 🩺 **MCP 体检（v0.7.0）**：`asp doctor` 对已部署的每条 MCP 做**真实 initialize 握手**，PASS/WARN/FAIL/SKIP 健康表——「配置写了」不算数，「实测握上手」才算
 - 🔑 **零 key**：默认功能全部无需 API key；key 类增强服务只提供注册引导，**安装器永不收集你的 key**
 - ➕ **只增不覆盖**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
 - 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
-- 📦 **离线快照**：全部内容随包本地化，装完不依赖外网
+- 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化，装完不依赖外网（context7 走官方托管端点，联网可用）
 
 ## 快速开始
 
@@ -62,6 +63,14 @@ bash asp.sh install
 
 安装器流程：探测 agent → 确认 → 部署 skills / AGENTS.md / MCP → 输出安装报告。装完**重启你的 agent** 生效。
 
+装完先体检（推荐）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File asp.ps1 doctor     # macOS/Linux: ./asp.sh doctor
+```
+
+对已部署的每条 MCP 做真实 initialize 握手，输出健康表；任一 FAIL 退出码为 1。
+
 ### 3. 装完后第一件事（首用三连）
 
 打开 agent，任选一条直接发：
@@ -83,10 +92,10 @@ bash asp.sh install
 | KimiWork（Kimi Claw） | `~/.kimi_openclaw/workspace/skills/` | workspace AGENTS.md | 插件体系（研究） | ✅ 真机实测 |
 | Trae（字节） | 待实测 | 待实测 | `~/.trae/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
 | Qoder（阿里） | 待实测 | 待实测 | `~/.qoder/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
-| WorkBuddy | `~/.workbuddy/skills/` | SOUL.md 托管段（AGENTS.md 不在其加载链） | `~/.workbuddy/mcp.json` merge | ✅ 真机实测 |
+| WorkBuddy | `~/.workbuddy/skills/` | SOUL.md 托管段（AGENTS.md 不在其加载链） | 设置界面手动添加（`mcp.json` 非加载面，v0.7 实测） | ✅ skills/SOUL.md 实测；MCP 走手动 |
 
 > 「写入实证」= 安装/幂等/配置保留已真机验证，agent 侧首开冒烟由各端用户确认；实测环境 Win10 / PowerShell 5.1。
-> 🔁 国内两端（Trae/Qoder）v0.1：**环境迁移已支持**（检测不到的路径自动跳过），包安装待真机实测后开放——配置真实布局欢迎 issue 反馈修正。WorkBuddy 已于 v0.6.1 真机实测转正：skills 部署 + 角色内容进 SOUL.md 托管段（实测加载链为 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/，AGENTS.md 不生效）+ `~/.workbuddy/mcp.json` merge。
+> 🔁 国内两端（Trae/Qoder）v0.1：**环境迁移已支持**（检测不到的路径自动跳过），包安装待真机实测后开放——配置真实布局欢迎 issue 反馈修正。WorkBuddy 已于 v0.6.1 真机实测转正：skills 部署 + 角色内容进 SOUL.md 托管段（实测加载链为 SOUL.md / IDENTITY.md / USER.md / BOOTSTRAP.md + skills/，AGENTS.md 不生效）。**v0.7.0 修正**：v0.6.1 的「mcp.json merge」结论被证伪——实测该文件不在 WorkBuddy 当前版本的 MCP 加载面（真实面为每会话生成的 agent-cli-mcp-config），MCP 改为设置界面手动添加。
 
 ## 内容清单（v0.5.0 分层）
 
@@ -99,7 +108,7 @@ bash asp.sh install
 | 规划类 | idea-grilling · assumption-audit · okr-planning · project-kickoff · risk-register · stakeholder-mapping · minimal-solution |
 | 通用工具 | meeting-to-decisions · data-insight · experiment-design · metric-design |
 
-随包：通用版 AGENTS.md（想法拷问→规划→协作→质量→复盘 五环）+ 通用 prompts × 11 + **3 个零 key MCP**（asp-context7 / asp-memory / asp-sequential-thinking；key 类见 `mcp/optional-mcp.md`）
+随包：通用版 AGENTS.md（想法拷问→规划→协作→质量→复盘 五环）+ 通用 prompts × 11 + **1 个零 key MCP**（asp-context7，官方托管远程端点——零 node 依赖、零冷启动、`asp doctor` 可实测；asp-memory / asp-sequential-thinking 自 v0.7.0 移入可选件，决策理由见 `mcp/optional-mcp.md`）
 
 ### PM 专业包 ai-pm（12 skills，PM 专属）
 
@@ -165,7 +174,7 @@ AI-cold-start/
 ## 路线图
 
 - [ ] **交付形态 v2**：电商交付一段安装代码（`irm …/i/<orderToken> | iex`）+ 本地 UI 选择式安装（环境×内容包三步流）+ 按订单周签 URL（7 天 TTL）；更新触达三档（L2 勾选式自动更新默认关 / L1 群通知 / L0 重跑兜底）——设计已冻结，见 [docs/DELIVERY-V2.md](docs/DELIVERY-V2.md) 与 [docs/ANTI-RESALE.md](docs/ANTI-RESALE.md)（EULA"转售即分销"30% 返佣）
-- [ ] **安装体验 v2（ONBOARDING V2）**：W1 市场共存双向桥 · W2 凭据钱包+doctor 流量灯体检 · W3 首装对照（装前基线→装后同题→before/after 报告）· W4 零决策安装+弱模型 CI 矩阵——设计见 [docs/ONBOARDING-V2.md](docs/ONBOARDING-V2.md)；**W1 阶段1 已落地**：市场上架准备（渠道事实源 [registry/marketplace-map.json](registry/marketplace-map.json) + 素材生成器 [scripts/gen-marketplace-kit.py](scripts/gen-marketplace-kit.py) + 上架指南 [docs/MARKETPLACE-LISTING.md](docs/MARKETPLACE-LISTING.md)；Claude 官方插件市场 kit-ready / skills.sh 已 live / Qoder format-ready）
+- [ ] **安装体验 v2（ONBOARDING V2）**：W1 市场共存双向桥 · W2 凭据钱包+doctor 流量灯体检 · W3 首装对照（装前基线→装后同题→before/after 报告）· W4 零决策安装+弱模型 CI 矩阵——设计见 [docs/ONBOARDING-V2.md](docs/ONBOARDING-V2.md)；**W1 阶段1 已落地**：市场上架准备（渠道事实源 [registry/marketplace-map.json](registry/marketplace-map.json) + 素材生成器 [scripts/gen-marketplace-kit.py](scripts/gen-marketplace-kit.py) + 上架指南 [docs/MARKETPLACE-LISTING.md](docs/MARKETPLACE-LISTING.md)；Claude 官方插件市场 kit-ready / skills.sh 已 live / Qoder format-ready）；**W2 的 doctor v1（MCP 流量灯体检）已于 v0.7.0 提前落地**
 - [ ] AI 开发者包 / AI 内容创作包（¥10 基础层 + 各自专业层 ¥19.9，复用 base）
 - [ ] P1 skills：问卷设计 / UAT 验收 / 用户画像 / 增长实验 / 演示材料 / 竞品监控 / 定价设计
 - [ ] 免费 lite 版拆分（make-lite，适配分层结构）
