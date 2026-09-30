@@ -1,0 +1,114 @@
+{
+  "$comment": "W1 市场共存·双向映射表 v0.1。出站=outbound（我们的技能上架外部市场）；入站=inbound（市场型 agent 的清单卡来源）。本文件是市场渠道的单一事实源；asp 安装器/UI picker 消费此文件的阶段见 docs/ONBOARDING-V2.md W1 阶段2。",
+  "version": "0.1.0",
+  "updated": "2026-09-30",
+  "outbound": {
+    "strategy": "lite 免费上架引流；完整包（prompts/AGENTS.md/MCP/周更）不进市场、走安装码渠道。市场简介以『完整版 31 skills+42 指令+周更』作钩子导流（衔接 lite→付费漏斗与商品页 GIF 素材）。",
+    "brand": {
+      "display_name": "TODO-D9（身份口径定稿前占位：AI-Start Kits）",
+      "owner_repo": "xjinya-xiangwu/AI-cold-start",
+      "note": "上架显示名与作者署名依赖 D9（商品页身份口径，W3 硬时限）；技术准备不受阻塞"
+    },
+    "free_tier": {
+      "packs": ["base"],
+      "skills": [
+        "idea-grilling",
+        "minimal-solution",
+        "bug-triage",
+        "post-mortem",
+        "metric-design",
+        "meeting-to-decisions"
+      ],
+      "$comment": "6 个高感知自产 skill 作引流精选；全部自产版权干净。最终名单上架前由人工定稿——改这里即可，生成脚本自动跟随。"
+    },
+    "channels": [
+      {
+        "id": "claude-plugin-marketplace",
+        "name": "Claude Code 官方插件市场",
+        "type": "official",
+        "status": "kit-ready",
+        "mechanism": "仓库根提供 .claude-plugin/marketplace.json（由 scripts/gen-marketplace-kit.py 生成到 dist/marketplace/claude-plugin/）。用户侧：claude plugin marketplace add xjinya-xiangwu/AI-cold-start → claude plugin install <plugin>@asp-kits。",
+        "verify": "claude plugin validate ./dist/marketplace/claude-plugin",
+        "next_action": "生成 kit 推到仓库根（或在 dist/ 提交），真机跑 validate + add + install 冒烟",
+        "refs": [
+          "https://code.claude.com/docs/en/plugins/create-marketplace",
+          "https://code.claude.com/docs/en/plugins/manifest-reference"
+        ]
+      },
+      {
+        "id": "skills-sh",
+        "name": "skills.sh / npx skills 跨 agent 注册表",
+        "type": "registry",
+        "status": "live",
+        "mechanism": "零提交：公开 repo 含 SKILL.md 即被收录，npx skills add xjinya-xiangwu/AI-cold-start 可装；榜单按装机量排。动作=内容推广引流 + skills 目录保持规范（name/description 质量决定转化）。",
+        "next_action": "无技术动作；纳入每周内容推广清单（小红书/即刻帖附安装命令）",
+        "refs": [
+          "https://github.com/vercel-labs/skills",
+          "https://github.com/vercel-labs/skills/issues/880"
+        ]
+      },
+      {
+        "id": "qoder-skill-marketplace",
+        "name": "Qoder 技能市场（阿里）",
+        "type": "official",
+        "status": "format-ready",
+        "mechanism": "SKILL.md 格式原生兼容（Extensions→Skills→Upload Skill 支持 ZIP/SKILL.md 直导）；第三方上架已开放（官方 claude-to-qoder-migration 已上架、他山科研 18 skills 先例）。生成脚本已产出 dist/marketplace/qoder/ 逐 skill ZIP 可直接导入。",
+        "next_action": "确认自助上架入口（文档未公开提交流程——联系官方或走 cloud-agents Skills API），随后提交 free_tier",
+        "refs": [
+          "https://docs.qoder.com/qoder/extension-publishing.md",
+          "https://qoder.com/zh/marketplace/skill"
+        ]
+      },
+      {
+        "id": "community-directories",
+        "name": "社区目录（agenticskills.io / openagentskill 等）",
+        "type": "community",
+        "status": "backlog",
+        "mechanism": "被动收录为主。lite 上架后抽查是否被索引；未索引再补提交。"
+      }
+    ],
+    "not_applicable": [
+      {
+        "agent": "trae",
+        "reason": "无独立技能市场（技能/规则走项目内配置，扩展走 VSCode VSIX 生态）——技能上架不适用，保持 asp 文件部署"
+      }
+    ],
+    "research": [
+      {
+        "agent": "workbuddy",
+        "reason": "重运营 agent 但市场机制无公开文档；适配器 v0.1 已支持环境迁移，市场调研待其开发者文档开放"
+      }
+    ]
+  },
+  "inbound": {
+    "strategy": "市场型 agent 的 pack 产出改为『市场清单卡』（装什么/为什么/深链/装后配置），用户在原生市场完成安装（享受原生更新管线）；asp 只部署市场装不了的判断层（AGENTS.md/prompts/MCP/gold）。asp doctor 负责核验清单项是否已装（阶段2 实现）。",
+    "agent_channels": {
+      "zcode": "file",
+      "claude-code": "both",
+      "codex": "file",
+      "cursor": "file",
+      "opencode": "file",
+      "dsh": "file",
+      "kimi": "file",
+      "trae": "file",
+      "qoder": "marketplace",
+      "workbuddy": "marketplace"
+    },
+    "marketplace_items": {
+      "$comment": "入站清单卡种子。阶段2 由 asp UI picker 渲染为逐项打勾清单；marketplace 条目在下方登记深链。",
+      "qoder": [
+        {
+          "id": "our-lite-listing",
+          "title": "AI-Start Kits 引流精选（待上架后填真实市场 id/深链）",
+          "why": "我们的 free_tier 上架 Qoder 市场后，清单卡直接指向自家条目——出站成功即反哺入站"
+        },
+        {
+          "id": "official_claude-to-qoder-migration",
+          "title": "官方 Claude 技能迁移工具",
+          "why": "现有 Claude 格式技能进 Qoder 的官方路径"
+        }
+      ],
+      "workbuddy": []
+    }
+  }
+}

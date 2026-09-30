@@ -21,15 +21,24 @@
 
 **问题**：重运营 agent（Qoder/WorkBuddy/Trae 等）已内建庞大的插件/技能/连接器市场，用户在其原生 UI 里装技能比 asp 的文件落盘更直观。asp 若在这些 agent 上坚持纯文件部署，是在逆平台习惯而行，安装成功率与用户信任都受损。
 
-**方案：适配器增加内容分发双轨能力。**
+**方案：双向桥——入站清单卡（消费者）+ 出站上架（供给者）。**
+
+**入站（对市场型 agent）**：
 
 1. **能力位**：`adapters/<agent>.json` 增加 `"skill_channel": "file" | "marketplace" | "both"`。市场型 agent 走新路径，文件型（Claude Code/Codex/ZCode/opencode/DSH/Kimi）维持现状。
-2. **marketplace_map**：registry 维护「pack 内条目 ↔ 各 agent 市场条目」映射（skill/插件 id、发布者、深链、装后配置要点）。v1 范围：Qoder / WorkBuddy / Trae / Cursor 四家的 top pack。
+2. **marketplace_map**：`registry/marketplace-map.json` 维护「pack 内条目 ↔ 各 agent 市场条目」映射与各 agent 渠道位。v1 范围：Qoder / WorkBuddy / Trae / Cursor 四家的 top pack。
 3. **市场清单卡**：对市场型 agent，asp 产出有序安装清单卡（装什么→为什么→深链→装后配置），并入 DELIVERY-V2 的本地 UI picker 逐项打勾；用户在原生市场完成安装（享受其原生更新管线）。
 4. **职责切分**：asp 仍负责市场装不了的部分——AGENTS.md 工作流/规则、prompts 库、MCP 配置、gold 判断标准。这部分恰是市场不供给的「方法层」。
 5. **核验闭环**：`asp doctor` 增加市场项核验（配置痕迹启发式检测，不可检测的出手动勾选）；周更时提醒市场侧有新值得装的条目。
 
-**定位重申（对外话术同步更新）**：市场解决「单个 agent 内的发现与安装」；asp 解决「同一套专业方法层跨 10 个 agent 一致生效 + 每周策展更新 + 判断标准（AGENTS.md/prompts/gold）」。市场越成熟，跨端一致性的稀缺性越高——W1 让 asp 从市场竞争者变为市场之上的策展层。
+**出站（上架外部市场）**：把我们自己的自产技能铺进主流市场——SKILL.md 已成为跨市场通用格式（Claude 插件市场 / Qoder / skills.sh 三渠道同吃一个格式），一次制作三渠道分发。**策略：lite 免费上架引流，完整包走安装码渠道。** 渠道矩阵、生成器与上架 checklist 见 `docs/MARKETPLACE-LISTING.md`；渠道事实源在 `registry/marketplace-map.json`。出站成功后清单卡直接指向自家市场条目——**出站是入站的弹药**。
+
+**阶段1 已落地（2026-09-30）**：
+- `registry/marketplace-map.json` v0.1——双向渠道事实源（出站 4 渠道：Claude 官方市场 kit-ready / skills.sh 已 live / Qoder format-ready / 社区目录 backlog；入站 10 agent 渠道位 + 清单卡种子）
+- `scripts/gen-marketplace-kit.py`——上架素材生成器（lite/free_tier 或 full 档）：Claude 插件市场 kit（marketplace.json+plugin.json+skills）· Qoder 逐 skill 直导 ZIP · 全渠道元数据；纯标准库，已真数据验证
+- `docs/MARKETPLACE-LISTING.md`——渠道矩阵/上架 checklist/合规与品牌（D9 占位）/出站反哺入站闭环
+
+**定位重申（对外话术同步更新）**：市场解决「单个 agent 内的发现与安装」；asp 解决「同一套专业方法层跨 10 个 agent 一致生效 + 每周策展更新 + 判断标准（AGENTS.md/prompts/gold）」。市场越成熟，跨端一致性的稀缺性越高——双向桥让 asp 既借市场的流量（出站引流），又站上市场的上层（入站策展）。
 
 ---
 
