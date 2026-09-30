@@ -70,7 +70,7 @@ bash asp.sh install
 2. `用 prd-drafting 帮我起草"企业知识库助手"的 PRD 框架`
 3. `用 product-reporting 把这周进展写成一页周报`
 
-## 支持的 agent（7 个）
+## 支持的 agent（10 个）
 
 | Agent | skills 位置 | AGENTS.md | MCP | 实测状态 |
 |---|---|---|---|---|
@@ -81,8 +81,12 @@ bash asp.sh install
 | opencode | `~/.config/opencode/skills/` | 项目根 AGENTS.md（`asp agents` 部署） | `opencode.json` | ✅ 写入实证 |
 | DeepSeek Harness | `~/.dsh/skills/` | 全局 `~/.dsh/AGENTS.md` 注入 | 默认不启用 | ✅ 真机实测 |
 | KimiWork（Kimi Claw） | `~/.kimi_openclaw/workspace/skills/` | workspace AGENTS.md | 插件体系（研究） | ✅ 真机实测 |
+| Trae（字节） | 待实测 | 待实测 | `~/.trae/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
+| Qoder（阿里） | 待实测 | 待实测 | `~/.qoder/mcp.json`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
+| WorkBuddy | 待实测 | 待实测 | `~/.workbuddy/`（迁移已支持） | 🔁 迁移 v0.1，安装待实测 |
 
 > 「写入实证」= 安装/幂等/配置保留已真机验证，agent 侧首开冒烟由各端用户确认；实测环境 Win10 / PowerShell 5.1。
+> 🔁 国内三端（Trae/Qoder/WorkBuddy）v0.1：**环境迁移已支持**（检测不到的路径自动跳过），包安装待真机实测后开放——配置真实布局欢迎 issue 反馈修正。
 
 ## 内容清单（v0.5.0 分层）
 
