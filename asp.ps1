@@ -18,7 +18,9 @@ param(
     [switch]$All,
     [switch]$DryRun,
     [switch]$Yes,
-    [switch]$IncludeOversized
+    [switch]$IncludeOversized,
+    [string]$Repo = "",
+    [string]$Branch = "env-sync"
 )
 
 $ErrorActionPreference = "Stop"
@@ -496,8 +498,42 @@ function Invoke-Export([string]$Out) {
     Write-Utf8NoBom (Join-Path $staging "manifest.json") ($manifest | ConvertTo-Json -Depth 8)
     Write-Utf8NoBom (Join-Path $staging "README-MIGRATE.txt") ("asp 环境迁移包（生成于 $(Get-Date -Format s)）`r`n还原：把 asp 目录复制到新机器后运行  powershell -File asp.ps1 migrate <本包路径>`r`n注意：包内 MCP 配置可能含 API key，请妥善保管；还原为 merge 语义（不删除目标已有文件）。")
 
-    $outFile = if ($Out) { $Out } else { Join-Path (Get-Location).Path ("asp-env-" + $stamp + ".zip") }
+    $outFile = if ($Out) { $Out } else { Join-Path $env:TEMP ("asp-env-" + $stamp + ".zip") }
     Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outFile -Force
+
+    # ---- GitHub 通道（-Repo）：包进私有仓库的 env 分支，新机器零 U 盘直接还原 ----
+    if ($Repo) {
+        if (-not (Test-Command git)) { Write-Host "[错误] -Repo 需要 git（未检测到）。先装 git，或去掉 -Repo 用本地包。" -ForegroundColor Red; Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
+        $repoDir = Join-Path $env:TEMP ("asp-remote-" + [guid]::NewGuid().ToString("N"))
+        & git clone --depth 1 $Repo $repoDir 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Write-Host "[错误] git clone 失败——先去 GitHub 建一个 PRIVATE 仓库，并确认本机有推送权限。" -ForegroundColor Red; Remove-Item $staging, $repoDir -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
+        Push-Location $repoDir
+        & git checkout -B $Branch 2>&1 | Out-Null
+        $migDir = Join-Path $repoDir "env"
+        if (Test-Path $migDir) { Remove-Item $migDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $migDir -Force | Out-Null
+        Copy-Item $outFile (Join-Path $migDir "env.zip") -Force
+        Write-Utf8NoBom (Join-Path $migDir "LATEST.txt") ("package=env.zip`r`nexported_at=" + (Get-Date -Format s) + "`r`nsource_host=" + $env:COMPUTERNAME + "\" + $env:USERNAME)
+        & git add -A
+        & git -c user.name="asp-env-sync" -c user.email="asp@local" commit -m "env sync $stamp" 2>&1 | Out-Null
+        & git push -u origin $Branch 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+        $pushOk = ($LASTEXITCODE -eq 0)
+        Pop-Location
+        Remove-Item $staging, $repoDir -Recurse -Force -ErrorAction SilentlyContinue
+        if ($pushOk) {
+            Write-Host ""
+            Write-Host ("[完成] 环境已推送到 {0}（分支 {1}，env/env.zip）" -f $Repo, $Branch) -ForegroundColor Green
+            Write-Host "  新机器三步:" -ForegroundColor Green
+            Write-Host ("    ① git clone {0}" -f $Repo) -ForegroundColor Green
+            Write-Host "    ② 进入目录: asp.ps1 install        （装 asp 运行环境本身）" -ForegroundColor Green
+            Write-Host ("    ③ asp.ps1 migrate env -Yes         （从 env/ 一键还原全部环境）" -f ) -ForegroundColor Green
+            Write-Host "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。" -ForegroundColor Yellow
+        } else {
+            Write-Host "[错误] git push 失败——本地包保留在: $outFile（可手动推或 U 盘带过去）" -ForegroundColor Red
+        }
+        return
+    }
+
     Remove-Item $staging -Recurse -Force
     Write-Host ""
     Write-Host ("[完成] 迁移包: {0}" -f $outFile) -ForegroundColor Green
@@ -506,7 +542,28 @@ function Invoke-Export([string]$Out) {
 }
 
 function Invoke-Migrate([string]$PkgPath, [bool]$AllAgents, [bool]$DryRun) {
-    if (-not $PkgPath) { $PkgPath = Read-Host "[输入] 迁移包路径 (zip / tar.gz / 已解压目录)" }
+    # 快捷方式：`migrate env` = 用本仓库 env/ 分支的最新环境包（含拉取）
+    $pkgIsRepoShortcut = ($PkgPath -eq "env")
+    if ($pkgIsRepoShortcut) {
+        $envDir = Join-Path $Root "env"
+        if (Test-Command git) {
+            Write-Host "[拉取] git pull 更新 env/（分支 env-sync）..."
+            & git fetch origin env-sync 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { & git checkout -q env-sync 2>&1 | Out-Null; & git pull -q origin env-sync 2>&1 | Out-Null }
+        }
+        $PkgPath = Join-Path $envDir "env.zip"
+        if (-not (Test-Path $PkgPath)) { Write-Host "[错误] $PkgPath 不存在——旧机器还没推送过环境（asp.ps1 export -Repo <url>），或没切到 env-sync 分支。" -ForegroundColor Red; exit 1 }
+    }
+    elseif ($PkgPath -match '^(https?://|git@)') {
+        # 直接给了仓库 URL：浅克隆取包
+        if (-not (Test-Command git)) { Write-Host "[错误] URL 方式需要 git。" -ForegroundColor Red; exit 1 }
+        $repoDir = Join-Path $env:TEMP ("asp-remote-" + [guid]::NewGuid().ToString("N"))
+        & git clone --depth 1 --branch $Branch $PkgPath $repoDir 2>&1 | Out-Null
+        if (-not (Test-Path (Join-Path $repoDir "env\env.zip"))) { & git clone --depth 1 $PkgPath $repoDir 2>&1 | Out-Null }
+        $p = Join-Path $repoDir "env\env.zip"
+        if (-not (Test-Path $p)) { Write-Host "[错误] 仓库里没有 env/env.zip（旧机器未推送过？）" -ForegroundColor Red; exit 1 }
+        $PkgPath = $p
+    }
     if (-not $PkgPath -or -not (Test-Path $PkgPath)) { Write-Host "[错误] 找不到: $PkgPath" -ForegroundColor Red; exit 1 }
     $staging = Join-Path $env:TEMP ("asp-mig-" + [guid]::NewGuid().ToString("N"))
     if (Test-Path $PkgPath -PathType Container) { Copy-Item $PkgPath $staging -Recurse -Force }

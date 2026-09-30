@@ -293,7 +293,7 @@ do_export() { # $1=输出路径（缺省 ./asp-env-<时间戳>.tar.gz）
     for d in "${DS[@]}"; do [ -n "$d" ] && [ -d "$(expand_tilde "$d")" ] && echo -e "dir\t$id\t${d#"~/"}" >> "$cand"; done
   done <<< "$(read_migrate)"
   # 复制进包；按一级子项拆分记账（单 skill 粒度 → 还原端按 ≤20MB 默认/超大可选分级）
-  local n=0 cand2="$staging/.items.txt" ovfile="$staging/.oversized.txt"; : > "$cand2"; : > "$ovfile"
+  local n=0 cand2="$staging/.items.txt" ovfile="$staging/.oversized.txt" OVFILE="$staging/.oversized.txt"; : > "$cand2"; : > "$ovfile"
   while IFS=$'\t' read -r kind agent rel; do
     [ -z "${rel:-}" ] && continue
     local src="$HOME/$rel" dst="$staging/home/$rel"
@@ -307,9 +307,8 @@ do_export() { # $1=输出路径（缺省 ./asp-env-<时间戳>.tar.gz）
         cname=$(basename "$child"); crel="$rel/$cname"; dstChild="$staging/home/$crel"
         if [ -d "$child" ]; then
           mkdir -p "$dstChild"
-          (cd "$child" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print) | while IFS= read -r f; do
-            mkdir -p "$dstChild/$(dirname "$f")"; cp "$child/$f" "$dstChild/$f"
-          done
+          # tar 管道一次拷贝（逐文件 cp 在 Git Bash 下进程派生开销过大）
+          (cd "$child" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print0 | tar -cf - --null -T - 2>/dev/null) | (cd "$dstChild" && tar -xf -)
           cn=$(find "$dstChild" -type f 2>/dev/null | wc -l)
           if [ "$cn" -eq 0 ]; then rm -rf "$dstChild"; continue; fi
           cb=$(( $(du -sk "$dstChild" | cut -f1) * 1024 ))
@@ -349,9 +348,7 @@ do_export() { # $1=输出路径（缺省 ./asp-env-<时间戳>.tar.gz）
         local row; row="$(sed -n "${p}p" "$ovfile")"
         IFS=$'\t' read -r agent rel files bytes <<< "$row"
         local psrc="$HOME/$rel" pdst="$staging/home/$rel"; mkdir -p "$pdst"
-        (cd "$psrc" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print) | while IFS= read -r f; do
-          mkdir -p "$pdst/$(dirname "$f")"; cp "$psrc/$f" "$pdst/$f"
-        done
+        (cd "$psrc" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print0 | tar -cf - --null -T - 2>/dev/null) | (cd "$pdst" && tar -xf -)
         echo -e "dir\t$agent\t$rel\t$files\t$bytes" >> "$cand2"
         echo "  $agent: 已含超大项  $rel"
       done
@@ -387,16 +384,53 @@ open(os.path.join(st, "README-MIGRATE.txt"), "w", encoding="utf-8").write(
 PYEOF
   local outfile="${out:-$PWD/asp-env-$stamp.tar.gz}"
   tar -czf "$outfile" -C "$staging" .
+
+  # ---- GitHub 通道（ASP_EXPORT_REPO）：包进私有仓库 env 分支，新机器零 U 盘还原 ----
+  if [ -n "${ASP_EXPORT_REPO:-}" ]; then
+    command -v git >/dev/null 2>&1 || { echo "[错误] -Repo 需要 git（未检测到）"; rm -rf "$(dirname "$staging")"; exit 1; }
+    local repodir; repodir="$(mktemp -d)/asp-remote"
+    git clone --depth 1 "$ASP_EXPORT_REPO" "$repodir" 2>/dev/null || { echo "[错误] git clone 失败——先去 GitHub 建 PRIVATE 仓库并确认推送权限"; rm -rf "$(dirname "$staging")" "$repodir"; exit 1; }
+    ( cd "$repodir"       && git checkout -B "${ASP_EXPORT_BRANCH:-env-sync}" 2>/dev/null       && rm -rf env && mkdir -p env       && cp "$outfile" env/env.tar.gz       && printf 'package=env.tar.gz
+exported_at=%s
+source_host=%s@%s
+' "$(date +%Y-%m-%dT%H:%M:%S)" "$(whoami)" "$(hostname)" > env/LATEST.txt       && cp -R "$ROOT/adapters" "$ROOT/packs" "$ROOT/registry" "$ROOT/docs" . 2>/dev/null       && cp "$ROOT/asp.sh" "$ROOT/asp.ps1" "$ROOT/setup.bat" "$ROOT/setup.command" "$ROOT/update.bat" "$ROOT/update.command" . 2>/dev/null       && cp "$ROOT/migrate-export.bat" "$ROOT/migrate-restore.bat" "$ROOT/migrate-export.command" "$ROOT/migrate-restore.command" . 2>/dev/null       && git add -A       && git -c user.name=asp-env-sync -c user.email=asp@local commit -m "env sync $(date +%Y%m%d-%H%M%S)" 2>/dev/null       && git push -u origin "${ASP_EXPORT_BRANCH:-env-sync}"       && git remote set-head origin "${ASP_EXPORT_BRANCH:-env-sync}" 2>/dev/null; git push origin "${ASP_EXPORT_BRANCH:-env-sync}:${ASP_EXPORT_BRANCH:-env-sync}" --force 2>/dev/null; true )
+    local pushok=$?
+    rm -rf "$(dirname "$staging")" "$repodir"
+    if [ $pushok -eq 0 ]; then
+      echo "[完成] 环境已推送到 $ASP_EXPORT_REPO（分支 ${ASP_EXPORT_BRANCH:-env-sync}，env/env.tar.gz）"
+      echo "  新机器三步:"
+      echo "    ① git clone $ASP_EXPORT_REPO"
+      echo "    ② cd 仓库目录 && ./asp.sh install     # 装 asp 运行环境本身"
+      echo "    ③ ./asp.sh migrate env -y             # 从 env/ 一键还原全部环境"
+      echo "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。"
+    else
+      echo "[错误] git push 失败——本地包保留在: $outfile"
+    fi
+    return 0
+  fi
   rm -rf "$(dirname "$staging")"
   echo "[完成] 迁移包: $outfile"
   echo "  还原: 新机器 asp 目录下  ./asp.sh migrate \"$outfile\""
   echo "  ⚠ 包内可能含 API key（MCP 配置），请妥善保管。"
 }
 
-do_migrate() { # $1=迁移包路径（tar.gz/zip/目录）；env: ASP_MIG_YES / ASP_MIG_ALL / ASP_MIG_OVERSIZED / ASP_MIG_DRYRUN
+do_migrate() { # $1=迁移包路径（tar.gz/zip/目录/env 快捷方式/仓库URL）；env: ASP_MIG_YES / ASP_MIG_ALL / ASP_MIG_OVERSIZED / ASP_MIG_DRYRUN
   local pkg="${1:-}"
-  [ -z "$pkg" ] && read -r -p "[输入] 迁移包路径 (tar.gz / zip / 已解压目录): " pkg
-  [ -z "$pkg" ] && { echo "[错误] 未提供迁移包路径"; exit 1; }
+  [ -z "$pkg" ] && read -r -p "[输入] 迁移包路径 / env / 仓库URL: " pkg
+  if [ "$pkg" = "env" ]; then
+    # 快捷方式：用本仓库 env/ 的最新环境包（先 pull）
+    if command -v git >/dev/null 2>&1; then
+      echo "[拉取] git pull 更新 env/（分支 env-sync）..."
+      git fetch origin env-sync 2>/dev/null && git checkout -q env-sync 2>/dev/null && git pull -q origin env-sync 2>/dev/null
+    fi
+    pkg="$ROOT/env/env.tar.gz"
+    [ -f "$pkg" ] || { zip_f="$ROOT/env/env.zip"; [ -f "$zip_f" ] && pkg="$zip_f" || { echo "[错误] $pkg 不存在——旧机器还没推送过（./asp.sh export，设 ASP_EXPORT_REPO=<私有仓库URL>）"; exit 1; }; }
+  elif [[ "$pkg" =~ ^(https?://|git@) ]]; then
+    command -v git >/dev/null 2>&1 || { echo "[错误] URL 方式需要 git"; exit 1; }
+    local repodir; repodir="$(mktemp -d)/asp-remote"
+    git clone --depth 1 --branch "${ASP_EXPORT_BRANCH:-env-sync}" "$pkg" "$repodir" 2>/dev/null || git clone --depth 1 "$pkg" "$repodir" || { echo "[错误] clone 失败"; exit 1; }
+    [ -f "$repodir/env/env.tar.gz" ] && pkg="$repodir/env/env.tar.gz" || { [ -f "$repodir/env/env.zip" ] && pkg="$repodir/env/env.zip" || { echo "[错误] 仓库里没有 env/env.tar.gz"; exit 1; }; }
+  fi
   [ -e "$pkg" ] || { echo "[错误] 找不到: $pkg"; exit 1; }
   local staging; staging="$(mktemp -d)/asp-mig"
   mkdir -p "$staging"

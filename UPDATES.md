@@ -3,6 +3,8 @@
 ## v0.6.0（2026-09-30）— 一键环境迁移 + 国内 agent 适配
 
 **新功能：环境迁移（export / migrate，零依赖）**
+
+**GitHub 通道（v0.6.0 追加）**：`export -Repo <私有仓库URL>` 自动推送环境包到仓库 env-sync 分支（含完整 asp 程序）；新机器 `git clone` + `migrate env` 即完成迁移，零 U 盘零网盘。migrate 同时支持 `env` 快捷方式与直接给仓库 URL。
 - `asp export`：收集本机全部已检测 agent 的 skills / 全局 AGENTS.md / MCP 配置 / 记忆目录 → 单个迁移包（zip / tar.gz），manifest 逐项记录 sha256/字节数
 - `asp migrate`：新机器一键还原——①自动检测本机 agent 并选择导入哪些客户端 ②体积分级（单项 ≤20MB 默认同步，超大项列出勾选）③merge 语义（只增改不删除，替换自动备份 _backup/）④导入结果验证（逐文件哈希回读比对）
 - 双击入口：migrate-export.bat / migrate-restore.bat（Win）、migrate-export.command / migrate-restore.command（mac/Linux）

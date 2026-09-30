@@ -32,7 +32,7 @@
 - ➕ **只增不覆盖**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
-- 🔁 **环境迁移（v0.6.0）**：`asp export` 打包全部 agent 环境（skills/AGENTS.md/MCP/记忆）→ 新机器 `asp migrate` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
+- 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
 - 📦 **离线快照**：全部内容随包本地化，装完不依赖外网
 
 ## 快速开始

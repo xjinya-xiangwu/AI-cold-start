@@ -8,7 +8,7 @@
 
 支持 agent（10 个）：Claude Code · Codex · Cursor · opencode · Zcode · DeepSeek Harness · KimiWork · **Trae · Qoder · WorkBuddy**（后三者为国内适配 v0.1：迁移已支持，路径待社区实测修正；包安装待实测后开放）。
 
-## 快速开始
+## 快速开始（本地包方式；推荐用下方 GitHub 通道）
 
 ```bash
 # ── 旧机器：导出 ──
@@ -51,6 +51,30 @@ mac/Linux: 双击 migrate-restore.command      或 ./asp.sh migrate <迁移包�
 - export（真实机器 5 agent）：469MB → 排除重物后 **25.7MB zip**；超大项四端一致检出（ppt-master 80.7MB ×4，默认排除可勾选）
 - migrate 沙箱还原：新增 328 文件 **328/328 哈希一致 ✓**；幂等重跑 0 写入；篡改后重跑触发 [更新]+自动备份 ✓
 - bash 端 E2E：detect→export→migrate→diff 内容一致 ✓（并修复了一个 pre-existing bug：旧版 `expand_tilde` 的 `${1#~/}` 在 bash 模式展开下永不匹配，detect 在 mac/Linux 上会永远为空——已修复）
+
+## GitHub 通道（推荐动线：零 U 盘零网盘，最多经过 GitHub）
+
+**一次性准备（旧机器，2 分钟）**：GitHub 网页新建一个 **Private** 仓库（如 `yourname/env-sync`，勾选不初始化），本机 git 已登录（HTTPS 凭据或 SSH）。
+
+```bash
+# ── 旧机器：导出并推送 ──
+mac/Linux: ASP_EXPORT_REPO=https://github.com/yourname/env-sync.git ./asp.sh export
+Windows:   powershell -File asp.ps1 export -Repo https://github.com/yourname/env-sync.git
+# 首次推送后到 GitHub 网页：Settings → Branches → 把默认分支设为 env-sync（一次性）
+# 之后每次迁移只需重跑同一条命令（覆盖式更新 env/）
+
+# ── 新机器：三步 ──
+① git clone https://github.com/yourname/env-sync.git && cd env-sync
+② （可选，补齐 agent 程序）./asp.sh install        # 或 asp.ps1 install
+③ ./asp.sh migrate env                              # 或 asp.ps1 migrate env -Yes
+# migrate env 自动 git pull 最新环境包 → 检测本机客户端 → 选择导入 → 哈希验证
+```
+
+也支持直接给 URL：`./asp.sh migrate https://github.com/yourname/env-sync.git`。
+
+**为什么安全**：Private 仓库 + 分支仅含环境包与 asp 程序；包内 MCP 可能含 API key——**务必 Private**，公开=泄露。历史版本在 git 历史里，可回滚。
+
+**环境分支内容**：`env/env.tar.gz`（或 .zip）+ `env/LATEST.txt`（导出时间/来源主机）+ 完整 asp 程序（adapters/packs/scripts），新机器 clone 一步即同时拿到还原工具与包。
 
 ## 已知边界
 
