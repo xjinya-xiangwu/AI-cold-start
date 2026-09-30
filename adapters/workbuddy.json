@@ -1,0 +1,14 @@
+{
+  "id": "workbuddy",
+  "name": "WorkBuddy",
+  "version": "0.1",
+  "detect": ["~/.workbuddy"],
+  "note": "国内主流 agent。已支持：环境迁移（配置目录整收集，布局待实测——检测不到自动跳过）。包安装待实测后开放。",
+  "instructions": { "mode": "none" },
+  "mcp": { "strategy": "none" },
+  "migrate": {
+    "files": ["~/.workbuddy/mcp.json", "~/.workbuddy/settings.json"],
+    "dirs": [],
+    "note": "配置文件按存在收集；真实布局待实测（欢迎 issue 反馈补正）"
+  }
+}

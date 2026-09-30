@@ -1,6 +1,6 @@
 # AI 冷启动包 · Agent Starter Pack
 
-> 把一套成型的「专家工作方法」——**19 个通用 skills（基础层）+ 12 个 PM 专业 skills** + 角色工作流 AGENTS.md + 零 key MCP 配置 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。
+> 把一套成型的「专家工作方法」——**19 个通用 skills（基础层）+ 12 个 PM 专业 skills** + 角色工作流 AGENTS.md + 零 key MCP 配置 + 42 条即用指令——10 分钟一键装进你电脑上的 7 个主流 AI agent，并每周更新。**v0.6.0 起支持一键环境迁移（export/migrate，零依赖，10 个 agent 含 Trae/Qoder/WorkBuddy）**。
 
 ![version](https://img.shields.io/badge/v0.5.0--tiered-2563EB) ![base](https://img.shields.io/badge/基础包--19%20skills%20%C2%A510-059669) ![ai--pm](https://img.shields.io/badge/PM专业包--12%20skills%20%C2%A519.9-8B5CF6) ![agents](https://img.shields.io/badge/agents-7-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
 
@@ -32,6 +32,7 @@
 - ➕ **只增不覆盖**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
+- 🔁 **环境迁移（v0.6.0）**：`asp export` 打包全部 agent 环境（skills/AGENTS.md/MCP/记忆）→ 新机器 `asp migrate` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
 - 📦 **离线快照**：全部内容随包本地化，装完不依赖外网
 
 ## 快速开始

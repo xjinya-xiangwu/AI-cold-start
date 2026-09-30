@@ -1,3 +1,23 @@
+# UPDATES
+
+## v0.6.0（2026-09-30）— 一键环境迁移 + 国内 agent 适配
+
+**新功能：环境迁移（export / migrate，零依赖）**
+- `asp export`：收集本机全部已检测 agent 的 skills / 全局 AGENTS.md / MCP 配置 / 记忆目录 → 单个迁移包（zip / tar.gz），manifest 逐项记录 sha256/字节数
+- `asp migrate`：新机器一键还原——①自动检测本机 agent 并选择导入哪些客户端 ②体积分级（单项 ≤20MB 默认同步，超大项列出勾选）③merge 语义（只增改不删除，替换自动备份 _backup/）④导入结果验证（逐文件哈希回读比对）
+- 双击入口：migrate-export.bat / migrate-restore.bat（Win）、migrate-export.command / migrate-restore.command（mac/Linux）
+- 体积分级依据实测：ppt-master 单 skill 80.7MB/13004 文件四端一致检出，默认排除可勾选；junction/软链不跟随 + node_modules/.git 排除，包体积 469MB → 25.7MB（真实机器 5 agent 实测）
+- 实测：Win10 PowerShell 端 export→沙箱还原 328/328 哈希一致、幂等 0 写入、篡改触发更新+备份；bash 端 E2E 通过
+- 文档：docs/MIGRATE.md
+
+**国内 agent 适配（v0.1，迁移已支持）**
+- 新增 adapters：Trae（字节）/ Qoder（阿里）/ WorkBuddy——配置与规则目录收集，真实布局待社区实测修正（检测不到自动跳过）
+- 支持列表 7 → 10 个 agent
+
+**修复**
+- asp.sh `expand_tilde`：`${1#~/}` 在 bash 模式展开下永不匹配（pre-existing bug，mac/Linux 端 detect 恒空）→ 改子串截断；此修复同时修正了既有 install 流程在 mac/Linux 的 agent 探测
+
+---
 # 更新日志
 
 ## v0.5.1（2026-09-30）

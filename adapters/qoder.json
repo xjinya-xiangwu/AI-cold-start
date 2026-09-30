@@ -1,0 +1,14 @@
+{
+  "id": "qoder",
+  "name": "Qoder (阿里)",
+  "version": "0.1",
+  "detect": ["~/.qoder"],
+  "note": "VS Code 系（qoder.com）。已支持：环境迁移（MCP 配置，路径待实测——检测不到自动跳过）。包安装待实测后开放。",
+  "instructions": { "mode": "none" },
+  "mcp": { "strategy": "none" },
+  "migrate": {
+    "files": ["~/.qoder/mcp.json"],
+    "dirs": [],
+    "note": "用户级 MCP；若实际布局不同欢迎反馈修正"
+  }
+}

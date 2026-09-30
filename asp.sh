@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =====================================================================
-# asp.sh - AI 冷启动包 (Agent Starter Pack) 安装/更新器 (macOS / Linux)
-# 用法: ./asp.sh [install|update|detect|agents|status] [pack] [dir]
-# 依赖: bash + curl/unzip/shasum（系统自带）+ python3（JSON 处理）
+# asp.sh - AI 冷启动包 (Agent Starter Pack) 安装/更新器 + 环境迁移 (macOS / Linux)
+# 用法: ./asp.sh [install|update|detect|agents|status|export|migrate] [pack] [dir]
+# 依赖: bash + curl/unzip/tar/sha256sum（系统自带）+ python3（JSON 处理）
 # =====================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +34,33 @@ for f in sorted(glob.glob(os.path.join(ad, "*.json"))):
 PYEOF
 }
 
-expand_tilde() { case "$1" in "~") echo "$HOME";; "~/"*) echo "$HOME/${1#~/}";; *) echo "$1";; esac; }
+expand_tilde() {
+  # 注意：${1#~/} 在 bash 中会因模式内 tilde 展开而失效（~/ 被展开成 $HOME/），故用子串截断
+  case "$1" in
+    "~") echo "$HOME" ;;
+    "~/"*) echo "$HOME/${1:2}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# 读取 adapter 显式声明的迁移资产（migrate.files / migrate.dirs），供 export 收集
+read_migrate() {
+  py - "$ROOT/adapters" <<'PYEOF'
+import json, sys, glob, os
+for f in sorted(glob.glob(os.path.join(sys.argv[1], "*.json"))):
+    a = json.load(open(f, encoding="utf-8"))
+    mg = a.get("migrate") or {}
+    files = ",".join(mg.get("files", []) or [])
+    dirs = ",".join(mg.get("dirs", []) or [])
+    if files or dirs:
+        print(f"{a['id']}|{files}|{dirs}")
+PYEOF
+}
+
+hash_file() { # $1=路径 -> sha256（sha256sum 优先，mac 回退 shasum）
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
 
 detect_agents() {
   local found=""
@@ -237,6 +263,250 @@ PYEOF
   echo "$deps $1"
 }
 
+# ---------- 环境迁移（v0.6.0）：export / migrate ----------
+do_export() { # $1=输出路径（缺省 ./asp-env-<时间戳>.tar.gz）
+  local out="${1:-}"
+  local found; found="$(detect_agents)"
+  [ -z "$found" ] && { show_guide; exit 0; }
+  echo "[探测] 发现: $(echo "$found" | awk -F'|' '{printf "%s  ", $2}')"
+  local stamp; stamp=$(date +%Y%m%d-%H%M%S)
+  local staging; staging="$(mktemp -d)/asp-mig"
+  mkdir -p "$staging/home"
+  local cand="$staging/.candidates.txt"; : > "$cand"
+  # adapter 已知路径
+  while IFS='|' read -r id name skills_dir imode itarget ifname mstrat mtarget mkey mtmpl mreq; do
+    [ -z "$id" ] && continue
+    [ -n "$skills_dir" ] && [ -d "$(expand_tilde "$skills_dir")" ] && echo -e "dir\t$id\t${skills_dir#"~/"}" >> "$cand"
+    [ "$imode" = "managed-section" ] && [ -n "$itarget" ] && [ -f "$(expand_tilde "$itarget")" ] && echo -e "file\t$id\t${itarget#"~/"}" >> "$cand"
+    [ "$mstrat" = "merge" ] && [ -n "$mtarget" ] && [ -f "$(expand_tilde "$mtarget")" ] && echo -e "file\t$id\t${mtarget#"~/"}" >> "$cand"
+    case "$id" in
+      zcode) [ -d "$HOME/.zcode/cli/memories" ] && echo -e "dir\tzcode\t.zcode/cli/memories" >> "$cand" ;;
+      kimi)  [ -f "$HOME/.kimi_openclaw/workspace/AGENTS.md" ] && echo -e "file\tkimi\t.kimi_openclaw/workspace/AGENTS.md" >> "$cand" ;;
+    esac
+  done <<< "$found"
+  # adapter 显式声明的迁移资产（trae/qoder/workbuddy 等）
+  while IFS='|' read -r id files dirs; do
+    [ -z "$id" ] && continue
+    IFS=',' read -ra FS <<< "$files"
+    for f in "${FS[@]}"; do [ -n "$f" ] && [ -f "$(expand_tilde "$f")" ] && echo -e "file\t$id\t${f#"~/"}" >> "$cand"; done
+    IFS=',' read -ra DS <<< "$dirs"
+    for d in "${DS[@]}"; do [ -n "$d" ] && [ -d "$(expand_tilde "$d")" ] && echo -e "dir\t$id\t${d#"~/"}" >> "$cand"; done
+  done <<< "$(read_migrate)"
+  # 复制进包；按一级子项拆分记账（单 skill 粒度 → 还原端按 ≤20MB 默认/超大可选分级）
+  local n=0 cand2="$staging/.items.txt" ovfile="$staging/.oversized.txt"; : > "$cand2"; : > "$ovfile"
+  while IFS=$'\t' read -r kind agent rel; do
+    [ -z "${rel:-}" ] && continue
+    local src="$HOME/$rel" dst="$staging/home/$rel"
+    if [ "$kind" = "dir" ]; then
+      [ -L "$src" ] && src="$(readlink -f "$src" 2>/dev/null || readlink "$src")"
+      [ -d "$src" ] || { echo "  $agent: 跳过(非目录)  $rel"; continue; }
+      [ -z "$(ls -A "$src" 2>/dev/null)" ] && { echo "  $agent: dir(空) 跳过  $rel"; continue; }
+      # 逐个一级子项（单 skill 粒度）：默认只收 ≤20MB；超大项记录待用户勾选
+      for child in "$src"/*; do
+        local cname crel dstChild cn cb
+        cname=$(basename "$child"); crel="$rel/$cname"; dstChild="$staging/home/$crel"
+        if [ -d "$child" ]; then
+          mkdir -p "$dstChild"
+          (cd "$child" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print) | while IFS= read -r f; do
+            mkdir -p "$dstChild/$(dirname "$f")"; cp "$child/$f" "$dstChild/$f"
+          done
+          cn=$(find "$dstChild" -type f 2>/dev/null | wc -l)
+          if [ "$cn" -eq 0 ]; then rm -rf "$dstChild"; continue; fi
+          cb=$(( $(du -sk "$dstChild" | cut -f1) * 1024 ))
+          if [ "$cb" -gt $((20*1024*1024)) ]; then
+            rm -rf "$dstChild"
+            echo -e "$agent\t$crel\t$cn\t$cb" >> "$OVFILE"
+            echo "  $agent: 超大项(默认不入包)  $crel  $((cb/1024)) MB"
+            continue
+          fi
+          echo -e "dir\t$agent\t$crel\t$cn\t$cb" >> "$cand2"
+        else
+          mkdir -p "$(dirname "$dstChild")"; cp "$child" "$dstChild"
+          echo -e "file\t$agent\t$crel\t1\t$(wc -c < "$dstChild" | tr -d ' ')" >> "$cand2"
+        fi
+      done
+      echo "  $agent: dir  $rel"; n=$((n+1)); continue
+    fi
+    mkdir -p "$staging/home/$(dirname "$rel")"
+    cp -R "$src" "$dst"
+    echo -e "file\t$agent\t$rel\t1\t$(wc -c < "$dst" | tr -d ' ')" >> "$cand2"
+    echo "  $agent: file  $rel"; n=$((n+1))
+  done < "$cand"
+  # 超大子项：列出供用户勾选（ASP_EXPORT_OVERSIZED=1 全含；确认模式 -Yes/非交互全不含）
+  if [ -s "$ovfile" ]; then
+    echo "[超大项] 以下超过 20MB，默认不入包:"
+    local i=1 pick_str=""
+    while IFS=$'\t' read -r agent rel files bytes; do echo "  $i. [$agent] $rel  $((bytes/1024)) MB / $files 文件"; i=$((i+1)); done < "$ovfile"
+    if [ "${ASP_EXPORT_OVERSIZED:-0}" = "1" ]; then pick_str="$(seq -s, 1 $((i-1)))"
+    elif [ -z "${ASP_MIG_YES:-}" ]; then read -r -p "[选择] 包含哪些超大项? 回车=都不含，或编号如 1,2: " pick_str; fi
+    if [ -n "$pick_str" ]; then
+      IFS=',' read -ra PKS <<< "$pick_str"
+      local total; total=$((i-1))
+      for p in "${PKS[@]}"; do
+        p=$(echo "$p" | tr -d ' ')
+        case "$p" in ''|*[!0-9]*) continue;; esac
+        [ "$p" -lt 1 ] || [ "$p" -gt "$total" ] && continue
+        local row; row="$(sed -n "${p}p" "$ovfile")"
+        IFS=$'\t' read -r agent rel files bytes <<< "$row"
+        local psrc="$HOME/$rel" pdst="$staging/home/$rel"; mkdir -p "$pdst"
+        (cd "$psrc" && find . -type d \( -name node_modules -o -name .git -o -name __pycache__ -o -name .venv -o -name venv -o -name .cache -o -name .pytest_cache \) -prune -o -type f ! -name "*.pyc" -print) | while IFS= read -r f; do
+          mkdir -p "$pdst/$(dirname "$f")"; cp "$psrc/$f" "$pdst/$f"
+        done
+        echo -e "dir\t$agent\t$rel\t$files\t$bytes" >> "$cand2"
+        echo "  $agent: 已含超大项  $rel"
+      done
+    fi
+  fi
+  mv "$cand2" "$cand"
+  [ "$n" -eq 0 ] && { echo "[提示] 未收集到任何可迁移文件。"; exit 0; }
+  # manifest（python3 生成：子项条目带 files/bytes，还原端做 20MB 分级）
+  ASP_STAGING="$staging" ASP_CAND="$cand" py <<'PYEOF'
+import json, os, hashlib, datetime
+st = os.environ["ASP_STAGING"]; home = os.path.join(st, "home")
+items = []
+for line in open(os.environ["ASP_CAND"], encoding="utf-8"):
+    parts = line.rstrip("\n").split("\t")
+    if len(parts) < 3: continue
+    kind, agent, rel = parts[0], parts[1], parts[2].replace(os.sep, "/")
+    files = int(parts[3]) if len(parts) > 3 and parts[3] else 0
+    bytes_ = int(parts[4]) if len(parts) > 4 and parts[4] else 0
+    p = os.path.join(home, rel)
+    if kind == "dir":
+        if files: items.append({"agent": agent, "type": "dir", "rel": rel, "files": files, "bytes": bytes_})
+    else:
+        if os.path.exists(p):
+            items.append({"agent": agent, "type": "file", "rel": rel, "sha256": hashlib.sha256(open(p, "rb").read()).hexdigest(), "bytes": bytes_})
+mf = {"tool": "asp", "tool_version": "0.6.0", "kind": "asp-env-migration",
+      "created_at": datetime.datetime.now().astimezone().isoformat(), "host": {"os": "mac/linux"},
+      "items": items, "note": "merge 语义：还原只增改不删除；单项 ≤20MB 默认同步，超大项还原时可选；包内 MCP 配置可能含 API key，请妥善保管"}
+json.dump(mf, open(os.path.join(st, "manifest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+open(os.path.join(st, "README-MIGRATE.txt"), "w", encoding="utf-8").write(
+  "asp 环境迁移包。还原: 新机器 asp 目录下 ./asp.sh migrate <本包路径>\n"
+  "还原时自动检测本机 agent 并可选择导入哪些客户端；单项 ≤20MB 默认同步，超大项按提示勾选。\n"
+  "注意: 包内 MCP 配置可能含 API key，请妥善保管；还原为 merge 语义（不删除目标已有文件）。")
+PYEOF
+  local outfile="${out:-$PWD/asp-env-$stamp.tar.gz}"
+  tar -czf "$outfile" -C "$staging" .
+  rm -rf "$(dirname "$staging")"
+  echo "[完成] 迁移包: $outfile"
+  echo "  还原: 新机器 asp 目录下  ./asp.sh migrate \"$outfile\""
+  echo "  ⚠ 包内可能含 API key（MCP 配置），请妥善保管。"
+}
+
+do_migrate() { # $1=迁移包路径（tar.gz/zip/目录）；env: ASP_MIG_YES / ASP_MIG_ALL / ASP_MIG_OVERSIZED / ASP_MIG_DRYRUN
+  local pkg="${1:-}"
+  [ -z "$pkg" ] && read -r -p "[输入] 迁移包路径 (tar.gz / zip / 已解压目录): " pkg
+  [ -z "$pkg" ] && { echo "[错误] 未提供迁移包路径"; exit 1; }
+  [ -e "$pkg" ] || { echo "[错误] 找不到: $pkg"; exit 1; }
+  local staging; staging="$(mktemp -d)/asp-mig"
+  mkdir -p "$staging"
+  if [ -d "$pkg" ]; then cp -R "$pkg/." "$staging/"
+  elif [[ "$pkg" == *.tar.gz || "$pkg" == *.tgz ]]; then tar -xzf "$pkg" -C "$staging"
+  elif [[ "$pkg" == *.zip ]]; then unzip -q -o "$pkg" -d "$staging"
+  else echo "[错误] 仅支持 tar.gz / zip / 已解压目录"; exit 1; fi
+  [ -f "$staging/manifest.json" ] || { echo "[错误] 包内缺少 manifest.json（不是 asp 迁移包？）"; exit 1; }
+
+  # ① 自动检测本机 agent，选择导入哪些客户端
+  local found; found="$(detect_agents)"
+  [ -z "$found" ] && { show_guide; exit 0; }
+  echo "[检测] 本机已装: $(echo "$found" | awk -F'|' '{printf "%s ", $2}')"
+  local selected
+  if [ "${ASP_MIG_ALL:-0}" = "1" ]; then
+    selected="$(echo "$found" | cut -d'|' -f1 | tr '\n' ' ')"
+  elif [ "${ASP_MIG_YES:-0}" = "1" ]; then
+    selected="$(echo "$found" | cut -d'|' -f1 | tr '\n' ' ')"
+  else
+    local i=1; while IFS='|' read -r id name rest; do echo "  $i. $name ($id)"; i=$((i+1)); done <<< "$found"
+    local ans; read -r -p "[选择] 导入哪些客户端? 回车=全部已检测，或编号如 1,3: " ans
+    if [ -z "$ans" ]; then selected="$(echo "$found" | cut -d'|' -f1 | tr '\n' ' ')"; else
+      IFS=',' read -ra TKS <<< "$ans"
+      local idx=1
+      while IFS='|' read -r id name rest; do
+        for t in "${TKS[@]}"; do [ "$t" = "$idx" ] && selected="$selected $id"; done
+        idx=$((idx+1))
+      done <<< "$found"
+    fi
+  fi
+  [ -z "${selected// /}" ] && { echo "未选择任何客户端，退出。"; exit 0; }
+
+  # ② 体积分级（≤20MB 默认）+ ③ 任务清单 + ④ 复制与验证（python3）
+  ASP_STAGING="$staging" ASP_SELECTED="$selected" ASP_HOME="$HOME" ASP_BACKUP="$BACKUP_DIR" \
+  ASP_MAXMB="${ASP_MIG_MAXMB:-20}" ASP_OVERSIZED="${ASP_MIG_OVERSIZED:-0}" ASP_DRYRUN="${ASP_MIG_DRYRUN:-0}" ASP_HOME="$HOME" py <<'PYEOF'
+import json, os, hashlib, shutil, datetime
+st = os.environ["ASP_STAGING"]; asp_home = os.environ["ASP_HOME"]; home_pkg = os.path.join(st, "home")
+selected = os.environ["ASP_SELECTED"].split(); maxmb = int(os.environ["ASP_MAXMB"])
+include_oversized = os.environ.get("ASP_OVERSIZED") == "1"; dry = os.environ.get("ASP_DRYRUN") == "1"
+backup = os.environ["ASP_BACKUP"]
+mf = json.load(open(os.path.join(st, "manifest.json"), encoding="utf-8"))
+print(f"[包] {mf['tool']} v{mf['tool_version']} · {mf['created_at']} · {len(mf['items'])} 项")
+
+default, optional = [], []
+for it in mf["items"]:
+    if it["agent"] not in selected: continue
+    mb = round(it.get("bytes", 0) / 1048576, 1)
+    if mb <= maxmb: default.append(it)
+    else: optional.append((it, mb))
+print(f"[分级] 默认同步 {len(default)} 项（≤{maxmb} MB/项）")
+if optional:
+    print(f"[分级] 超大项 {len(optional)} 个（默认不同步）:")
+    for i, (it, mb) in enumerate(optional, 1): print(f"  {i}. [{it['agent']}] {it['rel']}  {mb} MB")
+pick = set()
+if optional and not dry and include_oversized:
+    pick = set(range(len(optional)))
+elif optional and not dry:
+    ans = input("[选择] 包含哪些超大项? 回车=都不含，或编号如 1,2: ").strip()
+    if ans: pick = {int(t) - 1 for t in ans.split(",") if t.strip().isdigit() and 0 < int(t) <= len(optional)}
+chosen = default + [optional[i][0] for i in sorted(pick)]
+
+tasks = []
+for it in chosen:
+    src = os.path.join(home_pkg, it["rel"])
+    if it["type"] == "file":
+        tasks.append((it["agent"], src, os.path.join(asp_home, it["rel"]), it.get("sha256")))
+    else:
+        for root, _, fs in os.walk(src):
+            for f in fs:
+                fp = os.path.join(root, f)
+                relsub = os.path.relpath(fp, src).replace(os.sep, "/")
+                tasks.append((it["agent"], fp, os.path.join(asp_home, it["rel"].rstrip("/") + "/" + relsub), None))
+print(f"[计划] {len(tasks)} 个文件任务" + ("（DryRun：不写入）" if dry else ""))
+if tasks and not dry and os.environ.get("ASP_MIG_YES") != "1":
+    a = input("[确认] 执行还原? (Y/n) ").strip().lower()
+    if a and a != "y": print("已取消。"); raise SystemExit(0)
+
+created = updated = identical = skipped = 0; copied = []
+for agent, src, dst, sha in tasks:
+    rel = os.path.relpath(dst, asp_home)
+    if agent not in selected:
+        skipped += 1; print(f"  [跳过] {rel}（{agent} 本机未装）"); continue
+    if not sha: sha = hashlib.sha256(open(src, "rb").read()).hexdigest()
+    if os.path.exists(dst):
+        dsha = hashlib.sha256(open(dst, "rb").read()).hexdigest()
+        if dsha == sha: identical += 1; print(f"  [一致] {rel}"); continue
+        if not dry:
+            os.makedirs(backup, exist_ok=True)
+            shutil.copy2(dst, os.path.join(backup, os.path.basename(dst) + "." + datetime.datetime.now().strftime("%H%M%S") + ".bak"))
+            shutil.copy2(src, dst)
+        updated += 1; copied.append((src, dst, rel)); print(f"  [更新] {rel}")
+    else:
+        if not dry: os.makedirs(os.path.dirname(dst) or ".", exist_ok=True); shutil.copy2(src, dst)
+        created += 1; copied.append((src, dst, rel)); print(f"  [新增] {rel}")
+
+print(f"[汇总] 新增 {created} · 更新 {updated} · 一致跳过 {identical} · 跳过 {skipped}")
+if not dry:
+    if not copied: print("[验证] 无新写入文件，无需校验。")
+    else:
+        bad = [rel for s, d, rel in copied if hashlib.sha256(open(s, "rb").read()).hexdigest() != hashlib.sha256(open(d, "rb").read()).hexdigest()]
+        ok = len(copied) - len(bad)
+        if not bad: print(f"[验证] {ok}/{ok} 文件哈希一致 ✓")
+        else:
+            print(f"[验证] {ok}/{len(copied)} 一致，以下不一致:")
+            for rel in bad: print(f"    {rel}")
+    print("还原完成。重启你的 agent 生效；被替换文件的备份在 _backup/。")
+PYEOF
+  rm -rf "$(dirname "$staging")"
+}
+
 case "$COMMAND" in
   install)
     [ -z "$PACK" ] && PACK="base"
@@ -250,5 +520,7 @@ case "$COMMAND" in
   agents)  do_agents "$PACK" "$TARGET_DIR" ;;
   list)    for d in "$ROOT"/packs/*/; do n=$(find "$d/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l); echo "  $(basename "$d")  $n skills"; done ;;
   status)  [ -f "$STATE_FILE" ] && cat "$STATE_FILE" || echo "尚未安装任何包。" ;;
-  *) echo "用法: ./asp.sh [install|update|detect|agents|list|status] [pack] [dir]"; exit 1 ;;
+  export)  do_export "$PACK" ;;
+  migrate) do_migrate "$PACK" ;;
+  *) echo "用法: ./asp.sh [install|update|detect|agents|list|status|export|migrate] [pack] [dir]"; exit 1 ;;
 esac

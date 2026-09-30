@@ -1,0 +1,14 @@
+{
+  "id": "trae",
+  "name": "Trae (字节)",
+  "version": "0.1",
+  "detect": ["~/.trae"],
+  "note": "VS Code 系（trae.ai / trae.cn）。已支持：环境迁移（MCP 配置与规则目录，路径待实测——检测不到自动跳过）。包安装待实测后开放。",
+  "instructions": { "mode": "none" },
+  "mcp": { "strategy": "none" },
+  "migrate": {
+    "files": ["~/.trae/mcp.json"],
+    "dirs": ["~/.trae/rules"],
+    "note": "用户级 MCP 与规则；若实际布局不同欢迎反馈修正"
+  }
+}
