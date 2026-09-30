@@ -52,6 +52,8 @@
 
 ## 4. 验证方案（金题集 before/after）
 
+> **状态（2026-10-01 03:55）**：ZCode 腿已执行——**通过**（B 准确性 15/16 ≥ 阈值 13.5；版本标注 8/8 ≥ 7/8；总分与 A 打平 46/48，失败形态不同：A 间接性 vs B 索引滞后）。完整记录见 [GOLD-SET-DOCFRESH.md](GOLD-SET-DOCFRESH.md)；WorkBuddy 腿待执行（prompt 清单在该文件 §6）。
+
 - **金题 10 道**：训练截止后高概率变化的文档题（版本迁移/新 API/平台规则），混 2 道稳定概念题对照
 - **环境**：ZCode + WorkBuddy（web 工具双实证）各两轮：A=context7 MCP、B=fresh-docs skill
 - **评分**（每题 0-2 分×三维）：事实准确性 / 版本或日期标注 / 来源为官方域
