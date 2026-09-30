@@ -160,6 +160,7 @@ AI-cold-start/
 
 ## 路线图
 
+- [ ] **交付形态 v2**：电商交付一段安装代码（`irm …/i/<orderToken> | iex`）+ 本地 UI 选择式安装（环境×内容包三步流）+ 按订单周签 URL（7 天 TTL）；更新触达三档（L2 勾选式自动更新默认关 / L1 群通知 / L0 重跑兜底）——设计已冻结，见 [docs/DELIVERY-V2.md](docs/DELIVERY-V2.md) 与 [docs/ANTI-RESALE.md](docs/ANTI-RESALE.md)（EULA"转售即分销"30% 返佣）
 - [ ] AI 开发者包 / AI 内容创作包（¥10 基础层 + 各自专业层 ¥19.9，复用 base）
 - [ ] P1 skills：问卷设计 / UAT 验收 / 用户画像 / 增长实验 / 演示材料 / 竞品监控 / 定价设计
 - [ ] 免费 lite 版拆分（make-lite，适配分层结构）
