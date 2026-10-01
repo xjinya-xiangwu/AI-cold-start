@@ -25,6 +25,7 @@ asp.ps1 mcp remove       # 从全部 agent 移除 asp-* 托管条目（改前自
 
 - **无 npx 环境自动降级**：npx 型服务跳过、远程型（context7）照装；装 Node.js 后重跑补齐
 - **只新增不覆盖**：你自己配过的同名服务器一律跳过；装完 `asp doctor` 逐条验握手
+- **来源均为官方出品，零自建**：essentials 只收录官方发行包——@upstash/context7-mcp（Upstash）、@modelcontextprotocol/server-memory 与 server-sequential-thinking（Model Context Protocol / LF Projects 官方 monorepo）；本包不分发任何 MCP 服务代码，只写配置指向官方包/官方远程端点。条目前缀 `asp-` 仅是安装器命名空间（供 `asp mcp remove` 按前缀移除），非自建服务
 - setup.bat 安装完会问一次「是否同时装常用 MCP」——一次选择，全 agent 生效，不再逐个挑
 - 下文的手动片段仍适用于 key 类服务（brave/github/notion 等，永不经过安装器）
 

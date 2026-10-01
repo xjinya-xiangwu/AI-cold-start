@@ -1,5 +1,14 @@
 # UPDATES
 
+## v0.10.1（2026-10-01）— MCP 来源声明（均为官方出品）
+
+纯文档版：把「收录口径」写显式——essentials 预设三件全部为**官方发行包**，本包零自建 MCP 服务：
+
+- @upstash/context7-mcp（Upstash 官方，远程端点 mcp.context7.com）
+- @modelcontextprotocol/server-memory、server-sequential-thinking（Model Context Protocol / LF Projects 官方 monorepo，npm registry 已核实）
+- 条目前缀 `asp-` 仅为安装器命名空间（供 `asp mcp remove` 按前缀精确移除），易与自建服务混淆，已在 presets README、optional-mcp.md、根 README 三处声明「来源均为官方 + 前缀含义」
+- 收录口径入册：**MCP 预设只收官方出品包**（npm/GitHub 官方仓核实），key 类官方包（brave/github 等）仍走 optional-mcp.md 手动片段
+
 ## v0.10.0（2026-10-01）— 常用 MCP 一键装（asp mcp 子命令）
 
 新增 `asp mcp install|list|remove`——一条命令把预设 MCP 写入全部已检测 agent，用户不再逐 agent 逐服务挑配置。v0.8.0「默认零 MCP」决策不变：装不装仍由用户**一次选择**决定，装也是零 key 预设。
