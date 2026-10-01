@@ -1,6 +1,6 @@
 {
     "schema":  "asp-registry/0.2",
-    "generated_at":  "2026-10-01T03:30:00Z",
+    "generated_at":  "2026-10-01T07:27:36Z",
     "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。GitHub Pages 主源已上线（zip 随仓库分发 registry/packs/）；OSS 开通后替换 mirrors[1] 并换回首位。v0.8.1 起 mcp_defaults 为空（能力由 skills 承载，fresh-docs 文档查新；可选增强见 packs/base/mcp/optional-mcp.md）；zip/sha256 待发版由 scripts/build-release 重新打包生成，此前 update 会安全中止（哈希为空不通过）。",
     "mirrors":  [
                     "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
@@ -8,13 +8,13 @@
                 ],
     "packs":  {
                   "base":  {
-                               "version":  "v0.8.1",
+                               "version":  "v0.9.0",
                                "display_name":  "AI 冷启动包 · 基础包（跨职业通用）",
                                "price_note":  "10 元档",
                                "requires":  [
 
                                             ],
-                               "skills_count":  20,
+                               "skills_count":  25,
                                "skills_categories":  {
                                                          "提升开发效率":  [
                                                                         "dev-handoff",
@@ -43,17 +43,36 @@
                                                                       "experiment-design",
                                                                       "metric-design",
                                                                       "fresh-docs"
-                                                                  ]
+                                                                  ],
+                                                         "思路与决策":  [
+                                                                       "idea-grilling",
+                                                                       "brainstorming",
+                                                                       "assumption-audit",
+                                                                       "decision-premortem"
+                                                                   ],
+                                                         "质量保障":  [
+                                                                      "bug-triage",
+                                                                      "systematic-debugging",
+                                                                      "post-mortem",
+                                                                      "launch-readiness",
+                                                                      "verify-before-done"
+                                                                  ],
+                                                         "效率与体验":  [
+                                                                       "ponytail",
+                                                                       "adhd-mode"
+                                                                   ]
                                                      },
-                               "mcp_defaults":  [],
+                               "mcp_defaults":  [
+
+                                                ],
                                "mcp_note":  "v0.8.0 起默认零 MCP：文档查新能力由 fresh-docs skill 承载；context7 等转可选（optional-mcp.md）",
                                "prompts_count":  11,
-                               "zip":  "packs/base-v0.8.1.zip",
-                               "sha256":  "",
+                               "zip":  "packs/base-v0.9.0.zip",
+                               "sha256":  "d82fe2e86929d0660d4c9349447ecd534af5645ffad58a3a60f63d5d1f73d02e",
                                "sha256_note":  "待发版重新打包生成（sha 为空时 update 哈希校验必然失败从而安全中止）"
                            },
                   "ai-pm":  {
-                                "version":  "v0.8.1",
+                                "version":  "v0.9.0",
                                 "display_name":  "AI 冷启动包 · AI 产品经理专业包",
                                 "price_note":  "19.9 元档（含基础包合计 29.9）",
                                 "requires":  [
@@ -83,8 +102,8 @@
                                                                     ]
                                                       },
                                 "prompts_count":  31,
-                                "zip":  "packs/ai-pm-v0.8.1.zip",
-                                "sha256":  "",
+                                "zip":  "packs/ai-pm-v0.9.0.zip",
+                                "sha256":  "d250b22961ad4af5b4e2235a04f9d122e7ef1857bf1a101afd4dedeea34bbeed",
                                 "sha256_note":  "待发版重新打包生成（同 base）"
                             }
               },
