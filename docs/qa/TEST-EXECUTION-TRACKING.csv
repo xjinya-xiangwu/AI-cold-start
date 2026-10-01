@@ -1,0 +1,16 @@
+test_id,title,priority,status,defect_id,notes
+TC-INST-001,agent 探测 7/7,P0,PASS,,
+TC-INST-002,安装首轮（skills/managed/rules/toml/manual/migration-only/零MCP/诚实化）,P0,PASS,,"19 项断言全过；含 BUG-003 观察项"
+TC-INST-003,幂等重装,P0,PASS,,"托管段/配置/零MCP 路径稳定"
+TC-INST-004,真实用户文件零漂移（SHA256 护栏×8）,P0,PASS,,"红线通过"
+TC-MCP-010,用户自加可选件（context7）经安装不破坏,P1,PASS,,"空模板零迭代语义"
+TC-DOC-001,doctor 回归（fixture 配置面）,P1,PASS,,"分类正确；退出码 1；v0.7 真机 32 条另有记录"
+TC-UPD-001,周更安全中止（zip 404）,P1,PASS,BUG-002,"无写入；但裸异常+HTML 刷屏"
+TC-STAT-001,asp.ps1 UTF-8 BOM,P1,PASS,,"DEV 坑#1 回归"
+TC-STAT-002,asp.sh 纯 LF,P1,PASS,,
+TC-STAT-003,全仓密钥扫描,P0,PASS,,"github_pat 模式零命中"
+TC-STAT-004,零 MCP 消息双端一致,P3,FAIL,BUG-004,"asp.sh 少 MCP 三字（P4 实际）"
+TC-STAT-005,registry 一致性（v0.8.0/20/空）,P1,PASS,,
+TC-STAT-006,optional-mcp 免费 key 引导,P2,PASS,,
+TC-STAT-007,远端 base skills 实数 20,P1,PASS,,"GitHub API"
+TC-GOLD,fresh-docs 行为验收（金题集 ZCode 腿）,P0,PASS,,"详见 GOLD-SET-DOCFRESH.md；WorkBuddy 腿待跑"
