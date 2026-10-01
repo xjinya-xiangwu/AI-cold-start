@@ -1,6 +1,6 @@
 {
     "schema":  "asp-registry/0.2",
-    "generated_at":  "2026-10-01T13:27:30Z",
+    "generated_at":  "2026-10-01T15:01:45Z",
     "note":  "v0.5.0 分层结构：base（通用基础包）+ ai-pm（PM 专业包，requires base）。GitHub Pages 主源已上线（zip 随仓库分发 registry/packs/）；OSS 开通后替换 mirrors[1] 并换回首位。v0.8.1 起 mcp_defaults 为空（能力由 skills 承载，fresh-docs 文档查新；可选增强见 packs/base/mcp/optional-mcp.md）；zip/sha256 待发版由 scripts/build-release 重新打包生成，此前 update 会安全中止（哈希为空不通过）。",
     "mirrors":  [
                     "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
@@ -8,7 +8,7 @@
                 ],
     "packs":  {
                   "base":  {
-                               "version":  "v0.12.0",
+                               "version":  "v0.13.0",
                                "display_name":  "AI 冷启动包 · 基础包（跨职业通用）",
                                "price_note":  "10 元档",
                                "requires":  [
@@ -67,12 +67,12 @@
                                                 ],
                                "mcp_note":  "v0.8.0 起默认零 MCP：文档查新能力由 fresh-docs skill 承载；context7 等转可选（optional-mcp.md）",
                                "prompts_count":  11,
-                               "zip":  "packs/base-v0.12.0.zip",
-                               "sha256":  "39b2bf6446d681591005e517415db28a62cde57179070fe0d5252fc3fed07ade",
+                               "zip":  "packs/base-v0.13.0.zip",
+                               "sha256":  "899d634a7ba88f773ee9a54c6c193a3a450e0f982e1bfd32161da0696195faea",
                                "sha256_note":  "待发版重新打包生成（sha 为空时 update 哈希校验必然失败从而安全中止）"
                            },
                   "ai-pm":  {
-                                "version":  "v0.12.0",
+                                "version":  "v0.13.0",
                                 "display_name":  "AI 冷启动包 · AI 产品经理专业包",
                                 "price_note":  "19.9 元档（含基础包合计 29.9）",
                                 "requires":  [
@@ -102,8 +102,8 @@
                                                                     ]
                                                       },
                                 "prompts_count":  31,
-                                "zip":  "packs/ai-pm-v0.12.0.zip",
-                                "sha256":  "b2ae94d1bb94f6dd4dff9b8632460fb77769b6b56955e3c37ba98119ea53fce0",
+                                "zip":  "packs/ai-pm-v0.13.0.zip",
+                                "sha256":  "c78fd729cbaf6f7c0db9e6ea364aa08fcdb07832ebbfd332f73e66f3ccefe24f",
                                 "sha256_note":  "待发版重新打包生成（同 base）"
                             }
               },

@@ -440,7 +440,7 @@ function Show-Guide {
 }
 
 # ---------- install ----------
-function Invoke-Install([string]$PackName, [string[]]$AgentIds = @()) {
+function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$SkillFilter = "", [switch]$SkipAgents) {
     $packDir = Join-Path $Root ("packs/" + $PackName)
     if (-not (Test-Path $packDir)) {
         Write-Host ("[错误] 本快照中不存在包: {0}" -f $PackName) -ForegroundColor Red
@@ -481,21 +481,28 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @()) {
             $dst = Expand-Tilde $a.skills_dir
             if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
             $skillDirs = Get-ChildItem $skillsSrc -Directory
-            foreach ($s in $skillDirs) {
-                Copy-Item $s.FullName (Join-Path $dst $s.Name) -Recurse -Force
+            if ($SkillFilter) { $want = @($SkillFilter -split ','); $skillDirs = @($skillDirs | Where-Object { $want -contains $_.Name }) }   # UI 技能子集
+            if ($skillDirs.Count -gt 0) {
+                foreach ($s in $skillDirs) {
+                    Copy-Item $s.FullName (Join-Path $dst $s.Name) -Recurse -Force
+                }
+                Write-Host ("    skills: {0} 个 -> {1}" -f $skillDirs.Count, $dst)
+                $report += ("{0}: skills x{1}" -f $a.name, $skillDirs.Count)
             }
-            Write-Host ("    skills: {0} 个 -> {1}" -f $skillDirs.Count, $dst)
-            $report += ("{0}: skills x{1}" -f $a.name, $skillDirs.Count)
         }
 
-        # 2) AGENTS.md（全局型；workspace 型在 asp agents 子命令处理）
-        if ($a.instructions.mode -eq "managed-section" -and $a.instructions.target) {
+        # 2) AGENTS.md（全局型；workspace 型在 asp agents 子命令处理；-SkipAgents=UI 未勾选该模块）
+        if ($SkipAgents) {
+            Write-Host "    AGENTS.md: 本次未勾选，跳过" -ForegroundColor DarkGray
+        }
+        elseif ($a.instructions.mode -eq "managed-section" -and $a.instructions.target) {
             $agentsMd = Get-Content (Join-Path $packDir "AGENTS.md") -Raw -Encoding UTF8
             $r = Deploy-ManagedSection $agentsMd (Expand-Tilde $a.instructions.target) $a.id
             Write-Host ("    AGENTS.md -> {0} ({1})" -f $a.instructions.target, $r)
             $report += ("{0}: AGENTS.md {1}" -f $a.name, $r)
-        } elseif ($a.instructions.mode -eq "workspace") {
-            Write-Host ("    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署" -f $a.name)
+        }
+        elseif ($a.instructions.mode -eq "workspace") {
+            Write-Host "    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署"
         } elseif ($a.instructions.mode -eq "cursor-rules" -and $a.instructions.target) {
             # Cursor 全局规则：包装为带 frontmatter 的 .mdc；frontmatter 在标记外，正文走 asp 托管段（幂等）
             $mdcTarget = Expand-Tilde $a.instructions.target
@@ -1144,29 +1151,50 @@ function Invoke-UI {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:#f4f6fa;color:#1a2233;padding:28px}
-.wrap{max-width:860px;margin:0 auto}
+.wrap{max-width:880px;margin:0 auto}
 h1{font-size:22px;margin-bottom:4px}
-.sub{color:#6b7688;font-size:13px;margin-bottom:22px}
-h2{font-size:15px;margin:18px 0 10px;color:#33415c}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
-.card{border:2px solid #dde4ee;border-radius:10px;padding:12px;cursor:pointer;background:#fff;transition:.15s}
-.card.on{border-color:#2563eb;background:#eff6ff}
-.card.off{opacity:.45;cursor:not-allowed}
-.card .nm{font-weight:600;font-size:14px}
-.card .ds{font-size:12px;color:#6b7688;margin-top:4px;line-height:1.5}
-.big{display:block;width:100%;margin-top:26px;padding:14px;font-size:16px;font-weight:600;color:#fff;background:#2563eb;border:none;border-radius:10px;cursor:pointer}
-.big:disabled{background:#9db4d8}
+.sub{color:#6b7688;font-size:13px;margin-bottom:20px}
+h2{font-size:15px;margin:20px 0 10px;color:#33415c;display:flex;align-items:center;justify-content:space-between}
+h2 .ops{font-size:12px;font-weight:400}
+h2 .ops a{color:#2563eb;cursor:pointer;text-decoration:none;margin-left:10px}
+.group{border:1px solid #dde4ee;border-radius:12px;background:#fff;margin-bottom:12px;overflow:hidden}
+.ghead{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;user-select:none}
+.ghead:hover{background:#f8faff}
+.ghead .arrow{transition:.2s;color:#8a94a8;font-size:12px}
+.group.open .ghead .arrow{transform:rotate(90deg)}
+.ghead .gt{font-weight:600;font-size:14px}
+.ghead .gd{font-size:12px;color:#6b7688}
+.ghead .cnt{margin-left:auto;font-size:12px;color:#2563eb;background:#eff6ff;border-radius:20px;padding:2px 10px}
+.gbody{display:none;border-top:1px solid #eef1f6}
+.group.open .gbody{display:block}
+.row{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;border-bottom:1px solid #f2f5f9}
+.row:last-child{border-bottom:none}
+.row:hover{background:#fafcff}
+.row input[type=checkbox]{margin-top:3px;width:15px;height:15px;accent-color:#2563eb;cursor:pointer}
+.row .rn{font-size:13.5px;font-weight:500;min-width:150px}
+.row .rd{font-size:12px;color:#6b7688;line-height:1.6;flex:1}
+.row.det .rd{max-height:0;overflow:hidden;transition:max-height .2s}
+.row.det .rd.full{color:#4a5568}
+.more{font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;margin-top:3px}
+.more:hover{color:#2563eb}
+.row.on{background:#f5f9ff}
+.srvs{font-size:11.5px;color:#7c8aa0;margin-top:3px;line-height:1.6}
+.srvs code{background:#f1f5f9;border-radius:3px;padding:0 4px}
+.bar{position:sticky;bottom:14px;margin-top:18px}
+.big{display:block;width:100%;padding:14px;font-size:16px;font-weight:600;color:#fff;background:#2563eb;border:none;border-radius:10px;cursor:pointer;box-shadow:0 6px 18px rgba(37,99,235,.25)}
+.big:disabled{background:#9db4d8;box-shadow:none}
+.hint{text-align:center;font-size:12px;color:#8a94a8;margin-top:8px}
 #log{background:#0f172a;color:#cde3ff;font:12px/1.7 Consolas,monospace;border-radius:10px;padding:14px;height:340px;overflow-y:auto;white-space:pre-wrap}
 .done{margin-top:14px;padding:14px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0;font-size:13px;line-height:1.9;display:none}
-.tag{display:inline-block;font-size:11px;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.pill{display:inline-block;font-size:11px;color:#059669;background:#d1fae5;border-radius:20px;padding:1px 8px;margin-left:8px}
 </style></head><body><div class="wrap">
 <div id="s1">
-<h1>AI 冷启动包 · 一键配置</h1>
-<div class="sub">一个页面选完所有可选项 → 下一步开始安装。已装内容自动跳过（只增不覆盖），随时可重跑。</div>
-<h2>① 部署到哪些 AI 工具（探测结果）</h2><div class="cards" id="agents"></div>
-<h2>② 安装哪些内容包</h2><div class="cards" id="packs"></div>
-<h2>③ 附加哪些 MCP 增强（可选 · 全部官方出品 · 零 key）</h2><div class="cards" id="presets"></div>
+<h1>AI 冷启动包 · 安装配置</h1>
+<div class="sub">已购内容清单如下——勾选本次要安装的模块（默认全选，已装的自动跳过）。每项附一句简介，点「详情」展开完整说明。</div>
+<h2>① 部署到哪些 AI 工具<span class="ops" id="agops"></span></h2><div class="group open" id="g_agents"><div class="gbody" id="agents"></div></div>
+<h2>② 你已购买的内容<span class="ops"><a onclick="selAll(1)">全选</a><a onclick="selAll(0)">全不选</a></span></h2><div id="packs"></div>
 <button class="big" id="go" onclick="start()">开始安装 →</button>
+<div class="hint">只新增不覆盖 · 改动自动备份可回滚 · 随时可重跑本页增装</div>
 </div>
 <div id="s2" style="display:none">
 <h1>正在安装…</h1><div class="sub" id="st">执行中，请勿关闭本页</div>
@@ -1176,33 +1204,84 @@ h2{font-size:15px;margin:18px 0 10px;color:#33415c}
 </div></div>
 <script>
 let S=null;
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 async function load(){
   S=await (await fetch('/api/state')).json();
-  const mk=(c,d,extra)=>`<div class="card ${d?'':'off'}" id="${extra.id}" onclick="${d?`tog('${extra.id}')`:''}"><div class="nm">${extra.nm}</div><div class="ds">${extra.ds}</div></div>`;
-  document.getElementById('agents').innerHTML=S.agents.map(a=>mk(0,a.detected,{id:'ag_'+a.id,nm:a.name+(a.detected?'':' ✗未检出'),ds:a.detected?('部署 skills'+(a.hasMcp?' / MCP':'')+' → '+(a.skillsDir||'')):'未检测到，装好后重跑即可'})).join('');
-  S.agents.filter(a=>a.detected).forEach(a=>tog('ag_'+a.id,true));
-  document.getElementById('packs').innerHTML=S.packs.map(p=>`<div class="card" id="pk_${p.name}" onclick="tog('pk_${p.name}')"><div class="nm">${p.display}<span class="tag">${p.price}</span></div><div class="ds">${p.skills} 个技能 · ${p.desc}${p.requires?'（含基础包）':''}</div></div>`).join('');
-  ['base','ai-pm'].forEach(n=>tog('pk_'+n,true));
-  document.getElementById('presets').innerHTML=S.presets.map(p=>`<div class="card" id="mc_${p.name}" onclick="tog('mc_${p.name}')"><div class="nm">${p.name}</div><div class="ds">${p.desc}</div></div>`).join('');
+  // agents
+  document.getElementById('agents').innerHTML=S.agents.map(a=>
+    `<label class="row ${a.detected?'on':''}" id="rw_ag_${a.id}" ${a.detected?'':'style="opacity:.45;cursor:not-allowed"'}>
+     <input type="checkbox" id="ag_${a.id}" ${a.detected?'checked':''} ${a.detected?'':'disabled'}>
+     <span class="rn">${a.name}${a.detected?'':'<span class="pill" style="background:#f1f5f9;color:#94a3b8">未检出</span>'}</span>
+     <span class="rd">${a.detected?('部署到 '+(a.skillsDir||'')+(a.hasMcp?'（含 MCP 配置）':'（MCP 手动模式）')):'未检测到——安装对应工具后重跑本页即可'}</span></label>`).join('');
+  S.agents.forEach(a=>{if(a.detected){const c=document.getElementById('ag_'+a.id);c.addEventListener('change',()=>document.getElementById('rw_ag_'+a.id).classList.toggle('on',c.checked));}});
+  // packs → 已购清单分组
+  document.getElementById('packs').innerHTML=S.packs.map(p=>{
+    const rows=p.mods.map(m=>{
+      const id='md_'+p.name+'_'+m.type+'_'+m.name;
+      const full=esc(m.desc);
+      const short=full.length>46?full.slice(0,46)+'…':full;
+      return `<div class="row" id="rw_${id}">
+        <input type="checkbox" id="${id}" checked>
+        <span class="rn">${esc(m.name)}</span>
+        <span class="rd"><span class="short">${esc(short)}</span><span class="full" style="display:none">${esc(full)}${m.servers?'<div class=srvs>包含：'+m.servers.map(s=>'<code>'+esc(s)+'</code>').join(' ')+'</div>':''}</span></span>
+        <span class="more" onclick="toggleDet(this)">详情 ▾</span></div>`;}).join('');
+    return `<div class="group" id="g_pk_${p.name}">
+      <div class="ghead" onclick="this.parentNode.classList.toggle('open')">
+        <span class="arrow">▶</span><span class="gt">${esc(p.display)}</span><span class="pill">已购</span>
+        <span class="gd">${p.mods.length} 个模块</span><span class="cnt" id="cnt_pk_${p.name}"></span></div>
+      <div class="gbody">${rows}</div></div>`;}).join('');
+  // presets → 作为独立分组（样式与包一致），行内含服务器列表
+  if(S.presets.length){
+    const rows=S.presets.map(pr=>{
+      const id='md_mcp_'+pr.name;
+      const full=esc(pr.desc);
+      const short=full.length>46?full.slice(0,46)+'…':full;
+      return `<div class="row" id="rw_${id}">
+        <input type="checkbox" id="${id}" checked>
+        <span class="rn">${esc(pr.name)}</span>
+        <span class="rd"><span class="short">${esc(short)}</span><span class="full" style="display:none">${esc(full)}<div class="srvs">包含：${pr.servers.map(s=>'<code>'+esc(s)+'</code>').join(' ')}</div></span></span>
+        <span class="more" onclick="toggleDet(this)">详情 ▾</span></div>`;}).join('');
+    document.getElementById('packs').insertAdjacentHTML('beforeend',
+      `<div class="group" id="g_mcp"><div class="ghead" onclick="this.parentNode.classList.toggle('open')">
+       <span class="arrow">▶</span><span class="gt">MCP 增强模块</span><span class="pill">官方出品</span>
+       <span class="gd">零 key · OAuth 在 agent 内登录</span><span class="cnt" id="cnt_mcp"></span></div>
+       <div class="gbody">${rows}</div></div>`);
+  }
+  document.querySelectorAll('.row input[type=checkbox]:checked').forEach(c=>c.closest('.row').classList.add('on'));
+  bindAll();updateCnts();
 }
-function tog(id,force){const e=document.getElementById(id);if(e.classList.contains('off'))return;e.classList.toggle('on',force===undefined?undefined:force);
- if(id.startsWith('pk_ai-pm')&&e.classList.contains('on'))tog('pk_base',true);}
+function toggleDet(el){const full=el.parentNode.querySelector('.full'),short=el.parentNode.querySelector('.short');
+ const on=full.style.display==='none';full.style.display=on?'block':'none';short.style.display=on?'none':'inline';el.textContent=on?'收起 ▴':'详情 ▾';}
+function bindAll(){document.querySelectorAll('.row input[type=checkbox]').forEach(c=>c.addEventListener('change',()=>{c.closest('.row').classList.toggle('on',c.checked);updateCnts();}));}
+function selAll(v){document.querySelectorAll('#packs .row input[type=checkbox]').forEach(c=>{if(!c.disabled){c.checked=!!v;c.closest('.row').classList.toggle('on',!!v);}});updateCnts();}
+function updateCnts(){
+  const cnt=(sel,base)=>{const n=document.querySelectorAll(sel+' input[type=checkbox]:checked').length,t=document.querySelectorAll(sel+' input[type=checkbox]').length;const e=document.getElementById(base);if(e)e.textContent='已选 '+n+' / '+t;};
+  document.querySelectorAll('[id^=cnt_pk_]').forEach(e=>{const g=e.id.slice(4);cnt('#'+g,g);});
+  cnt('#g_mcp','cnt_mcp');
+  const n=document.querySelectorAll('#agents input:checked').length,t=document.querySelectorAll('#agents input').length;
+  document.getElementById('agops').textContent='已选 '+n+' / '+t;
+}
 async function start(){
-  const pick=p=>S[p].filter(x=>document.getElementById(p.slice(0,2)+'_'+(x.id||x.name)).classList.contains('on')).map(x=>x.id||x.name);
-  const body={agents:S.agents.filter(a=>a.detected&&document.getElementById('ag_'+a.id).classList.contains('on')).map(a=>a.id),
-              packs:S.packs.filter(p=>document.getElementById('pk_'+p.name).classList.contains('on')).map(p=>p.name),
-              presets:S.presets.filter(p=>document.getElementById('mc_'+p.name).classList.contains('on')).map(p=>p.name)};
-  if(!body.agents.length||!body.packs.length){alert('至少选择一个部署目标和一个内容包');return}
-  if(!body.presets.includes('base')&&body.presets.length){}
+  const agents=S.agents.filter(a=>a.detected&&document.getElementById('ag_'+a.id).checked).map(a=>a.id);
+  const skills={},agents_md=[],prompts=[];
+  S.packs.forEach(p=>{const sel=[],am=document.getElementById('md_'+p.name+'_agents_md_AGENTS.md 角色工作流'),pr=document.getElementById('md_'+p.name+'_prompts_prompts 指令库');
+    p.mods.filter(m=>m.type==='skill').forEach(m=>{if(document.getElementById('md_'+p.name+'_skill_'+m.name).checked)sel.push(m.name);});
+    if(sel.length)skills[p.name]=sel;
+    if(am&&am.checked)agents_md.push(p.name);
+    if(pr&&pr.checked)prompts.push(p.name);});
+  const presets=S.presets.filter(p=>document.getElementById('md_mcp_'+p.name).checked).map(p=>p.name);
+  const nSk=Object.values(skills).reduce((a,b)=>a+b.length,0);
+  if(!agents.length||(!nSk&&!agents_md.length&&!prompts.length&&!presets.length)){alert('至少选择一个部署目标和一项内容');return}
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';
-  await fetch('/api/start',{method:'POST',body:JSON.stringify(body)});
-  const log=document.getElementById('log');let n=0;
+  document.getElementById('st').textContent='目标 '+agents.length+' 个工具 · 模块 '+nSk+' 技能 + '+agents_md.length+' AGENTS + '+prompts.length+' prompts + '+presets.length+' MCP 预设';
+  await fetch('/api/start',{method:'POST',body:JSON.stringify({agents,skills,agents_md,prompts,presets})});
+  const log=document.getElementById('log');
   const t=setInterval(async()=>{
     const p=await (await fetch('/api/progress')).json();
     log.textContent=p.lines.join('\n');log.scrollTop=log.scrollHeight;
     if(p.done){clearInterval(t);
       const d=document.getElementById('done');d.style.display='block';
-      d.innerHTML='✅ <b>安装完成</b>——重启你的 AI 工具后生效。<br>· 验证 MCP 连接：<code>asp.ps1 doctor</code><br>· 试试第一句：<code>用 idea-grilling 拷问我一个想法</code><br>· 每周更新：<code>asp.ps1 update</code> 或双击 update.bat<br>· 改选增装：重跑本页（已装的自动跳过）';
+      d.innerHTML='✅ <b>安装完成</b>——重启你的 AI 工具后生效。<br>· 验证 MCP 连接：<code>asp.ps1 doctor</code><br>· 试试第一句：<code>用 idea-grilling 拷问我一个想法</code><br>· 每周更新：<code>asp.ps1 update</code> 或双击 update.bat<br>· 漏装了？重跑本页，已装的自动跳过';
       document.getElementById('fin').style.display='block';document.getElementById('st').textContent='完成';}
   },800);
 }
@@ -1210,6 +1289,7 @@ function shutdown(){fetch('/api/shutdown',{method:'POST'});setTimeout(()=>window
 load();
 </script></body></html>
 '@
+
 
     # PS5.1 管道版 ConvertTo-Json 在本上下文偶发挂起——数据全受控，手写 mini 序列化（零管道、零坑）
     function ConvertTo-MiniJson($v) {
@@ -1260,13 +1340,45 @@ load();
             }
             elseif ($path -eq '/api/state') {
                 $idx = Get-Content (Join-Path $Root "registry/index.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-                $packs = @(); foreach ($p in @($idx.packs.PSObject.Properties)) {
-                    $packs += @{ name = $p.Name; display = $p.Value.display_name; skills = $p.Value.skills_count; price = $p.Value.price_note; desc = $p.Value.display_name; requires = @($p.Value.requires) }
+                $packs = @()
+                foreach ($p in @($idx.packs.PSObject.Properties)) {
+                    $pkDir = Join-Path $Root ("packs/" + $p.Name)
+                    $mods = @()
+                    # skills：逐项（简介取 SKILL.md frontmatter description 首行）
+                    $skDir = Join-Path $pkDir "skills"
+                    if (Test-Path $skDir) {
+                        foreach ($s in (Get-ChildItem $skDir -Directory | Sort-Object Name)) {
+                            $desc = ""
+                            $sm = Join-Path $s.FullName "SKILL.md"
+                            if (Test-Path $sm) {
+                                foreach ($ln in (Get-Content $sm -TotalCount 8 -Encoding UTF8)) {
+                                    if ($ln -match '^description:\s*(.+)$') { $desc = $Matches[1]; break }
+                                }
+                            }
+                            if ($desc.Length -gt 90) { $desc = $desc.Substring(0, 90) + '…' }
+                            $mods += @{ type = 'skill'; name = $s.Name; desc = $desc }
+                        }
+                    }
+                    if (Test-Path (Join-Path $pkDir "AGENTS.md")) {
+                        $mods += @{ type = 'agents_md'; name = 'AGENTS.md 角色工作流'; desc = '把「按阶段选用技能」的角色指令与知识基准注入你的 AI 工具，装完技能知道何时用哪个' }
+                    }
+                    $pr = Join-Path $pkDir "prompts/prompts.md"
+                    if (Test-Path $pr) {
+                        $mods += @{ type = 'prompts'; name = 'prompts 指令库'; desc = '即用提示词合集，落位 ~/.asp/prompts/ 供随时查阅粘贴' }
+                    }
+                    $packs += @{ name = $p.Name; display = $p.Value.display_name; desc = $p.Value.display_name; skills = $p.Value.skills_count; mods = $mods }
                 }
+                # MCP 预设：作为可选模块并入清单（desc=README 第二行，detail=包含的服务器名）
                 $presets = @(); $presetsDir = Join-Path $Root "packs/base/mcp/presets"
                 Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
                     $rd = Get-Content (Join-Path $_.FullName "README.md") -TotalCount 2 -Encoding UTF8 -ErrorAction SilentlyContinue
-                    if ($rd -and $rd.Count -ge 2) { $presets += @{ name = $_.Name; desc = $rd[1] } }
+                    $srvs = @()
+                    $tplFile = Join-Path $_.FullName "claude-code.mcp.json"
+                    if (Test-Path $tplFile) {
+                        $sv = (Get-Content $tplFile -Raw -Encoding UTF8 | ConvertFrom-Json).servers
+                        if ($sv) { $srvs = @($sv.PSObject.Properties.Name) }
+                    }
+                    $presets += @{ type = 'mcp'; name = $_.Name; desc = $rd[1]; servers = $srvs }
                 }
                 $detectedIds = @(Find-Agents | ForEach-Object { $_.id })
                 $agents = @(); foreach ($a in (Get-Adapters)) {
@@ -1278,23 +1390,43 @@ load();
                 $reader = New-Object System.IO.StreamReader($ctx.Request.InputStream, [System.Text.Encoding]::UTF8)
                 $body = $reader.ReadToEnd() | ConvertFrom-Json
                 if ($uiState.running) { Send-Json $ctx @{ ok = $false; msg = '已有任务在跑' }; continue }
-                $uiLog.Clear(); [void]$uiLog.Add('[UI] 开始安装：包=[' + (@($body.packs) -join ',') + '] MCP=[' + (@($body.presets) -join ',') + '] 目标=[' + (@($body.agents) -join ',') + ']')
+                $uiLog.Clear(); [void]$uiLog.Add('[UI] 开始安装：目标=[' + (@($body.agents) -join ',') + ']')
                 $uiState.started = $true; $uiState.running = $true; $uiState.done = $false
                 $aspPath = Join-Path $Root 'asp.ps1'
-                $selAgents = @($body.agents); $selPacks = @($body.packs); $selPresets = @($body.presets)
+                $selAgents = @($body.agents)
+                $selPresets = @($body.presets)
+                # 结构化选择：skills{pack:[names]} / agents_md:[packs] / prompts:[packs] / presets:[names]
+                $selSkills = @{}
+                if ($body.skills) { foreach ($prop in @($body.skills.PSObject.Properties)) { $selSkills[$prop.Name] = @($prop.Value) } }
+                $selAgentsMd = @(); if ($body.agents_md) { $selAgentsMd = @($body.agents_md) }
+                $selPrompts = @(); if ($body.prompts) { $selPrompts = @($body.prompts) }
                 $scriptBlock = {
-                    param($aspPath, $selAgents, $selPacks, $selPresets, $log, $state)
+                    param($aspPath, $selAgents, $selSkills, $selAgentsMd, $selPrompts, $selPresets, $log, $state, $Root2)
                     function Write-Host { param([Parameter(Position=0)]$Object, $ForegroundColor, $NoNewline) [void]$log.Add([string]$Object) }
                     $env:ASP_ENGINE = '1'
                     . $aspPath
                     $Yes = $true         # 必须在 dot-source 之后：param() 绑定会把 switch 重置为 false
-                    foreach ($p in $selPacks) { try { Invoke-Install $p $selAgents } catch { [void]$log.Add('[错误] ' + $_.Exception.Message) } }
+                    foreach ($packName in @($selSkills.Keys)) {
+                        $names = $selSkills[$packName]
+                        if ($names.Count -eq 0) { continue }
+                        $inAgents = $selAgentsMd -contains $packName
+                        try { Invoke-Install $packName $selAgents ($names -join ',') -SkipAgents:(-not $inAgents) } catch { [void]$log.Add('[错误] ' + $_.Exception.Message) }
+                    }
+                    foreach ($packName in $selPrompts) {   # prompts 模块：落位 ~/.asp/prompts/
+                        $src = Join-Path $Root2 ("packs/" + $packName + "/prompts/prompts.md")
+                        if (Test-Path $src) {
+                            $dstDir = Join-Path $Home ".asp/prompts"
+                            if (-not (Test-Path $dstDir)) { New-Item -ItemType Directory $dstDir -Force | Out-Null }
+                            Copy-Item $src (Join-Path $dstDir ($packName + "-prompts.md")) -Force
+                            [void]$log.Add('    prompts 指令库 -> ' + $dstDir + '\' + $packName + '-prompts.md')
+                        }
+                    }
                     foreach ($m in $selPresets) { try { Invoke-Mcp 'install' $m $selAgents } catch { [void]$log.Add('[错误] ' + $_.Exception.Message) } }
                     $env:ASP_ENGINE = $null
                     $state.running = $false; $state.done = $true
                 }
                 $uiPs = [powershell]::Create()
-                [void]$uiPs.AddScript($scriptBlock).AddArgument($aspPath).AddArgument($selAgents).AddArgument($selPacks).AddArgument($selPresets).AddArgument($uiLog).AddArgument($uiState)
+                [void]$uiPs.AddScript($scriptBlock).AddArgument($aspPath).AddArgument($selAgents).AddArgument($selSkills).AddArgument($selAgentsMd).AddArgument($selPrompts).AddArgument($selPresets).AddArgument($uiLog).AddArgument($uiState).AddArgument($Root)
                 [void]$uiPs.BeginInvoke()
                 Send-Json $ctx @{ ok = $true }
             }
