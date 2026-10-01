@@ -1,0 +1,14 @@
+# DSH 手动启用 dev-tools（DSH 默认不启用 MCP——沙箱安全设计）
+# 将本片段合并进 ~/.dsh/cordis.patch.yml，重启 dsh 后 /mcp 确认连接
+# 说明：filesystem 默认授权 ~/Documents（可改为你想要的目录）；supabase 首连需 OAuth
+mcp:
+  servers:
+    asp-playwright:
+      command: npx
+      args: ["-y", "@playwright/mcp@latest"]
+    asp-filesystem:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"]
+    asp-supabase:
+      command: npx
+      args: ["-y", "mcp-remote", "https://mcp.supabase.com/mcp"]

@@ -19,6 +19,14 @@
     "asp-mslearn": {
       "type": "remote",
       "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "asp-slack": {
+      "type": "remote",
+      "url": "https://slack.com/api/mcp"
+    },
+    "asp-asana": {
+      "type": "remote",
+      "url": "https://mcp.asana.com/sse"
     }
   }
 }

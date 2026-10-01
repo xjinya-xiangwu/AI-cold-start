@@ -1,5 +1,16 @@
 # UPDATES
 
+## v0.12.0（2026-10-01）— 两步选择式安装 UI + MCP 预设扩充（work-tools 7 件 / dev-tools 3 件）
+
+**安装主路径切换为可视化选择页**（参考 docs/DELIVERY-V2.md §三 UI 设计，按用户要求压缩为两步）：双击 `setup.bat` 或 `asp ui` 即用。
+
+- **两步流**：Step1 **一个页面选完所有可选项**——部署目标（探测到的 agent 卡片，未检出的灰置+引导）× 内容包（base/ai-pm，勾 ai-pm 自动含 base）× MCP 预设（essentials/work-tools/dev-tools，默认不勾保持零 MCP 原则）→ Step2 一键执行：后台引擎实时日志 → 安装报告（doctor 验证/首用指令/更新方式）→ 完成即关
+- **技术形态**：PS5.1 HttpListener 本地随机端口 + 自动开浏览器 + 单文件中文页面；`asp.ps1` 支持 `ASP_ENGINE=1` 引擎化加载（被 UI 后台 runspace 复用全部 adapters/幂等/回滚逻辑，DELIVERY-V2「asp 降级为部署引擎」落地）；引擎函数新增 AgentIds 子集过滤（按勾选的 agent 部署）；无浏览器环境用等价命令行
+- **work-tools 20→28 条目/扩至 7 件**：+asp-slack（Slack 官方 slack.com/api/mcp，旧 mcp.slack.com 已 302 跳转）、+asp-asana（Asana 官方 mcp.asana.com/sse）；端点逐一探活（200/401）
+- **新增 dev-tools 预设（3 件全官方）**：asp-playwright（Microsoft 官方 playwright-mcp 浏览器自动化）、asp-filesystem（MCP 官方，默认仅授权 ~/Documents 可改）、asp-supabase（Supabase 官方远程 OAuth）
+- optional-mcp.md 增补：Stripe（mcp.stripe.com 401 存活）、Sentry（mcp.sentry.dev/mcp 401）、Shopify Dev 与 Cloudflare Docs Search（官方存在但端点探活未证实，标注待验）；Google 官方端点未收敛暂不收
+- 安装器：Materialize-McpTemplate 补 args 数组 ~ 展开（filesystem 授权目录）；mcp list 三预设
+
 ## v0.11.0（2026-10-01）— work-tools 办公工具集预设（产品官方 MCP）
 
 新增第二个 MCP 预设档 **work-tools**：日常软件与平台的**产品官方 MCP** 五件，一条命令写入全部已检测 agent（`asp mcp install work-tools`）。收录口径不变：只收官方出品、零自建；配置不存任何密钥（OAuth 类首连在 agent 内授权）。

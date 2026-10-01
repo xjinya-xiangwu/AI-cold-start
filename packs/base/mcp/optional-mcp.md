@@ -147,9 +147,9 @@ Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
 
 （2026-10-01 实测：清缓存后 memory 0.6.3 / sequential-thinking 2026.8.31 全部握手 PASS。）
 
-## 六、办公工具官方 MCP（work-tools 预设之外的手动项）
+## 六、办公/开发工具官方 MCP（预设之外的手动项）
 
-以下同样为官方出品，但需要 key/凭证，走手动配置（安装器永不收集你的 key）：
+以下同样为官方出品，但需要 key/凭证或端点待进一步验证，走手动配置（安装器永不收集你的 key）：
 
 ### GitHub（官方远程，需 PAT）
 
@@ -163,6 +163,22 @@ Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
 }
 ```
 
+### Stripe（官方远程，开发者向）
+
+官方端点 https://mcp.stripe.com（已核实存活，OAuth/密钥鉴权）。文档：docs.stripe.com（搜 "Stripe MCP"）
+
+```json
+"asp-stripe": { "type": "http", "url": "https://mcp.stripe.com" }
+```
+
+### Sentry（官方远程，错误排查）
+
+官方端点 https://mcp.sentry.dev/mcp（已核实存活，需 auth token，sentry.io/settings 有 MCP 入口）
+
+```json
+"asp-sentry": { "type": "http", "url": "https://mcp.sentry.dev/mcp", "headers": { "Authorization": "Bearer 在这里填你的token" } }
+```
+
 ### 飞书 / Lark（官方 npm 包，需应用凭证）
 
 官方包 `@larksuiteoapi/lark-mcp`（Lark Open 官方）。需在飞书开放平台建自建应用拿 App ID/Secret：
@@ -174,6 +190,12 @@ Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
   "args": ["-y", "@larksuiteoapi/lark-mcp", "mcp", "-a", "<你的AppID>", "-s", "<你的AppSecret>"]
 }
 ```
+
+### 端点待验证（官方项目存在，端点连通性未证实，暂不预设）
+
+- Shopify Dev MCP：`https://dotdev-mcp.shopify.dev/mcp/`（Shopify 官方，探活 403——可能按 UA/地区门控）
+- Cloudflare Docs Search：`https://search.mcp.cloudflare.com/sse`（官方公开，本机探活超时）
+- Google 官方 MCP：官方端点未收敛，待其稳定后收录
 
 ### 未收录声明（诚实边界）
 

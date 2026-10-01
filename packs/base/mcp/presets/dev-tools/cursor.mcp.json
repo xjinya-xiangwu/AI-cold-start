@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "asp-playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "asp-filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"]
+    },
+    "asp-supabase": {
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}

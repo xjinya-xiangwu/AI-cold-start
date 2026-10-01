@@ -1,8 +1,7 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" install
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" ui
 echo.
-choice /C YN /M "Also install recommended MCPs? (context7 docs search + memory + thinking, zero-key)"
-if errorlevel 2 goto skipmcp
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" mcp install -Yes
-:skipmcp
+echo [CLI fallback] If the picker page did not open, use:
+echo   asp.ps1 install        (install packs)
+echo   asp.ps1 mcp install    (install MCP presets)
 pause

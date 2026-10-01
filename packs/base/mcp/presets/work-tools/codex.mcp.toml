@@ -18,3 +18,11 @@ args = ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
 [mcp_servers.asp-mslearn]
 command = "npx"
 args = ["-y", "mcp-remote", "https://learn.microsoft.com/api/mcp"]
+
+[mcp_servers.asp-slack]
+command = "npx"
+args = ["-y", "mcp-remote", "https://slack.com/api/mcp"]
+
+[mcp_servers.asp-asana]
+command = "npx"
+args = ["-y", "mcp-remote", "https://mcp.asana.com/sse"]

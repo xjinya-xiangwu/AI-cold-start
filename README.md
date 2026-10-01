@@ -35,7 +35,8 @@
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
 - 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
 - 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化；v0.8.0 起默认零 MCP——文档查新等增强能力由 skills 指挥 agent 内置 web 工具完成，无额外运行时与端点依赖
-- 🔌 **一键常用 MCP（v0.10.0，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强，两个官方预设——**essentials**（context7 文档检索 / 跨会话记忆 / 深度思考，零 key）与 **work-tools 办公工具集**（Figma / Notion / Jira-Confluence / Linear / Microsoft Learn 官方 MCP，OAuth 在 agent 内登录，不存 key）；全部官方出品零自建，无 npx 环境自动降级，只增不覆盖
+- 🔌 **一键常用 MCP（v0.10.0+，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强，三个官方预设——**essentials**（context7 / 记忆 / 深度思考，零 key）、**work-tools 办公工具集**（Figma / Notion / Jira·Confluence / Linear / Slack / Asana / MS Learn 官方 MCP）、**dev-tools 开发者集**（Microsoft Playwright / MCP 官方 filesystem / Supabase）；全部官方出品零自建，OAuth 在 agent 内登录不存 key，无 npx 环境自动降级，只增不覆盖
+- 🖥️ **两步选择式安装 UI（v0.12.0）**：双击 `setup.bat` 或 `asp ui` 打开本地选择页——**一步选完**部署目标（探测到的 agent）× 内容包 × MCP 预设，**第二步一键执行**：实时进度 → 安装报告（doctor 验证 / 首用指令 / 更新方式）。无浏览器环境可用等价命令行（install / mcp install）
 
 ## 快速开始
 
@@ -50,10 +51,17 @@ cd AI-cold-start
 
 ### 2. 安装
 
-**Windows**（PowerShell 5.1+，系统自带）：双击 `setup.bat`，或
+**Windows**（PowerShell 5.1+，系统自带）：双击 `setup.bat` 打开**两步选择页**，或命令行
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File asp.ps1 install
+powershell -ExecutionPolicy Bypass -File asp.ps1 ui
+```
+
+不想用页面时，等价命令行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File asp.ps1 install          # 全部探测到的 agent
+powershell -ExecutionPolicy Bypass -File asp.ps1 mcp install      # essentials MCP 预设
 ```
 
 **macOS / Linux**（依赖 python3）：

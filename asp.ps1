@@ -440,7 +440,7 @@ function Show-Guide {
 }
 
 # ---------- install ----------
-function Invoke-Install([string]$PackName) {
+function Invoke-Install([string]$PackName, [string[]]$AgentIds = @()) {
     $packDir = Join-Path $Root ("packs/" + $PackName)
     if (-not (Test-Path $packDir)) {
         Write-Host ("[错误] 本快照中不存在包: {0}" -f $PackName) -ForegroundColor Red
@@ -450,9 +450,9 @@ function Invoke-Install([string]$PackName) {
 
     Write-Host "[探测] 扫描本机 AI agent..."
     $agents = Find-Agents
+    if ($AgentIds.Count -gt 0) { $agents = @($agents | Where-Object { $AgentIds -contains $_.id }) }   # UI/外部指定部署目标子集
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
-
-    Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
+    Write-Host ("[探测] 部署目标 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
     # 多包依赖链安装时只确认一次（v0.5.0 分层）；-Yes 跳过确认（v0.8.1：非交互自动化通道，QA BUG-001）
     if (-not $script:AspConfirmed) {
         if ($Yes) {
@@ -991,6 +991,15 @@ function Materialize-McpTemplate([string]$TplPath, [bool]$HasNpx) {
                 if ($e.Value -is [string] -and $e.Value.StartsWith("~")) { $envProp.Value.PSObject.Properties[$e.Name].Value = $e.Value.Replace("~", $Home) }
             }
         }
+        # args 数组内的 ~ 同样展开（如 filesystem 的授权目录 ~/Documents）
+        $argsProp = $entry.PSObject.Properties["args"]
+        if ($argsProp -and $argsProp.Value -is [array]) {
+            for ($ai = 0; $ai -lt $argsProp.Value.Count; $ai++) {
+                if ($argsProp.Value[$ai] -is [string] -and $argsProp.Value[$ai].StartsWith("~")) {
+                    $argsProp.Value[$ai] = $argsProp.Value[$ai].Replace("~", $Home)
+                }
+            }
+        }
         $servers | Add-Member -NotePropertyName $p.Name -NotePropertyValue $entry
     }
     $wrapper = New-Object PSObject
@@ -1000,7 +1009,7 @@ function Materialize-McpTemplate([string]$TplPath, [bool]$HasNpx) {
     return $tmp
 }
 
-function Invoke-Mcp([string]$Sub, [string]$Preset) {
+function Invoke-Mcp([string]$Sub, [string]$Preset, [string[]]$AgentIds = @()) {
     $presetsDir = Join-Path $Root "packs/base/mcp/presets"
     if (-not $Preset) { $Preset = "essentials" }
     $presetDir = Join-Path $presetsDir $Preset
@@ -1024,6 +1033,7 @@ function Invoke-Mcp([string]$Sub, [string]$Preset) {
 
     if (-not (Test-Path $presetDir)) { Write-Host ("[错误] 无此预设: {0}（可用: {1}）" -f $Preset, ((Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object Name) -join ", ")) -ForegroundColor Red; exit 1 }
     $agents = Find-Agents
+    if ($AgentIds.Count -gt 0) { $agents = @($agents | Where-Object { $AgentIds -contains $_.id }) }
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
 
     if ($Sub -eq "install") {
@@ -1114,7 +1124,203 @@ function Invoke-Mcp([string]$Sub, [string]$Preset) {
     Write-Host "用法: asp.ps1 mcp [list|install|remove] [预设名]"; exit 1
 }
 
-# ---------- 主分发 ----------
+# ---------- ui 子命令：两步流选择安装（v0.12.0；参考 docs/DELIVERY-V2.md §三，步数按用户要求压缩为两步）----------
+# Step1 单页全选（agent 目标 × 内容包 × MCP 预设）→ Step2 一键执行+实时进度+报告
+function Invoke-UI {
+    $port = Get-Random -Minimum 18080 -Maximum 18999
+    $listener = New-Object System.Net.HttpListener
+    # 双 prefix：浏览器 localhost 与脚本/IPv4 直连 127.0.0.1 都认（单 localhost prefix 会拒 Host=127.0.0.1 的请求）
+    $listener.Prefixes.Add("http://localhost:$port/")
+    $listener.Prefixes.Add("http://127.0.0.1:$port/")
+    try { $listener.Start() } catch { Write-Host "[错误] 本地端口监听失败：$($_.Exception.Message)" -ForegroundColor Red; Write-Host "命令行等价用法：asp.ps1 install / asp.ps1 mcp install [预设名]"; exit 1 }
+
+    $uiLog = [System.Collections.ArrayList]::Synchronized((New-Object System.Collections.ArrayList))
+    $uiState = @{ started = $false; running = $false; done = $false }
+    $uiPs = $null
+
+    $html = @'
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>AI 冷启动包 · 安装</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:#f4f6fa;color:#1a2233;padding:28px}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:22px;margin-bottom:4px}
+.sub{color:#6b7688;font-size:13px;margin-bottom:22px}
+h2{font-size:15px;margin:18px 0 10px;color:#33415c}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.card{border:2px solid #dde4ee;border-radius:10px;padding:12px;cursor:pointer;background:#fff;transition:.15s}
+.card.on{border-color:#2563eb;background:#eff6ff}
+.card.off{opacity:.45;cursor:not-allowed}
+.card .nm{font-weight:600;font-size:14px}
+.card .ds{font-size:12px;color:#6b7688;margin-top:4px;line-height:1.5}
+.big{display:block;width:100%;margin-top:26px;padding:14px;font-size:16px;font-weight:600;color:#fff;background:#2563eb;border:none;border-radius:10px;cursor:pointer}
+.big:disabled{background:#9db4d8}
+#log{background:#0f172a;color:#cde3ff;font:12px/1.7 Consolas,monospace;border-radius:10px;padding:14px;height:340px;overflow-y:auto;white-space:pre-wrap}
+.done{margin-top:14px;padding:14px;border-radius:10px;background:#ecfdf5;border:1px solid #a7f3d0;font-size:13px;line-height:1.9;display:none}
+.tag{display:inline-block;font-size:11px;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}
+</style></head><body><div class="wrap">
+<div id="s1">
+<h1>AI 冷启动包 · 一键配置</h1>
+<div class="sub">一个页面选完所有可选项 → 下一步开始安装。已装内容自动跳过（只增不覆盖），随时可重跑。</div>
+<h2>① 部署到哪些 AI 工具（探测结果）</h2><div class="cards" id="agents"></div>
+<h2>② 安装哪些内容包</h2><div class="cards" id="packs"></div>
+<h2>③ 附加哪些 MCP 增强（可选 · 全部官方出品 · 零 key）</h2><div class="cards" id="presets"></div>
+<button class="big" id="go" onclick="start()">开始安装 →</button>
+</div>
+<div id="s2" style="display:none">
+<h1>正在安装…</h1><div class="sub" id="st">执行中，请勿关闭本页</div>
+<div id="log"></div>
+<div class="done" id="done"></div>
+<button class="big" id="fin" style="display:none" onclick="shutdown()">完成，关闭本页</button>
+</div></div>
+<script>
+let S=null;
+async function load(){
+  S=await (await fetch('/api/state')).json();
+  const mk=(c,d,extra)=>`<div class="card ${d?'':'off'}" id="${extra.id}" onclick="${d?`tog('${extra.id}')`:''}"><div class="nm">${extra.nm}</div><div class="ds">${extra.ds}</div></div>`;
+  document.getElementById('agents').innerHTML=S.agents.map(a=>mk(0,a.detected,{id:'ag_'+a.id,nm:a.name+(a.detected?'':' ✗未检出'),ds:a.detected?('部署 skills'+(a.hasMcp?' / MCP':'')+' → '+(a.skillsDir||'')):'未检测到，装好后重跑即可'})).join('');
+  S.agents.filter(a=>a.detected).forEach(a=>tog('ag_'+a.id,true));
+  document.getElementById('packs').innerHTML=S.packs.map(p=>`<div class="card" id="pk_${p.name}" onclick="tog('pk_${p.name}')"><div class="nm">${p.display}<span class="tag">${p.price}</span></div><div class="ds">${p.skills} 个技能 · ${p.desc}${p.requires?'（含基础包）':''}</div></div>`).join('');
+  ['base','ai-pm'].forEach(n=>tog('pk_'+n,true));
+  document.getElementById('presets').innerHTML=S.presets.map(p=>`<div class="card" id="mc_${p.name}" onclick="tog('mc_${p.name}')"><div class="nm">${p.name}</div><div class="ds">${p.desc}</div></div>`).join('');
+}
+function tog(id,force){const e=document.getElementById(id);if(e.classList.contains('off'))return;e.classList.toggle('on',force===undefined?undefined:force);
+ if(id.startsWith('pk_ai-pm')&&e.classList.contains('on'))tog('pk_base',true);}
+async function start(){
+  const pick=p=>S[p].filter(x=>document.getElementById(p.slice(0,2)+'_'+(x.id||x.name)).classList.contains('on')).map(x=>x.id||x.name);
+  const body={agents:S.agents.filter(a=>a.detected&&document.getElementById('ag_'+a.id).classList.contains('on')).map(a=>a.id),
+              packs:S.packs.filter(p=>document.getElementById('pk_'+p.name).classList.contains('on')).map(p=>p.name),
+              presets:S.presets.filter(p=>document.getElementById('mc_'+p.name).classList.contains('on')).map(p=>p.name)};
+  if(!body.agents.length||!body.packs.length){alert('至少选择一个部署目标和一个内容包');return}
+  if(!body.presets.includes('base')&&body.presets.length){}
+  document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='block';
+  await fetch('/api/start',{method:'POST',body:JSON.stringify(body)});
+  const log=document.getElementById('log');let n=0;
+  const t=setInterval(async()=>{
+    const p=await (await fetch('/api/progress')).json();
+    log.textContent=p.lines.join('\n');log.scrollTop=log.scrollHeight;
+    if(p.done){clearInterval(t);
+      const d=document.getElementById('done');d.style.display='block';
+      d.innerHTML='✅ <b>安装完成</b>——重启你的 AI 工具后生效。<br>· 验证 MCP 连接：<code>asp.ps1 doctor</code><br>· 试试第一句：<code>用 idea-grilling 拷问我一个想法</code><br>· 每周更新：<code>asp.ps1 update</code> 或双击 update.bat<br>· 改选增装：重跑本页（已装的自动跳过）';
+      document.getElementById('fin').style.display='block';document.getElementById('st').textContent='完成';}
+  },800);
+}
+function shutdown(){fetch('/api/shutdown',{method:'POST'});setTimeout(()=>window.close(),300)}
+load();
+</script></body></html>
+'@
+
+    # PS5.1 管道版 ConvertTo-Json 在本上下文偶发挂起——数据全受控，手写 mini 序列化（零管道、零坑）
+    function ConvertTo-MiniJson($v) {
+        if ($null -eq $v) { return 'null' }
+        if ($v -is [bool])   { if ($v) { return 'true' } else { return 'false' } }
+        if ($v -is [int] -or $v -is [long] -or $v -is [double]) { return [string]$v }
+        if ($v -is [string]) {
+            return '"' + ($v.Replace('\', '\\').Replace('"', '\"').Replace("`r", '\r').Replace("`n", '\n').Replace("`t", '\t')) + '"'
+        }
+        if ($v -is [System.Collections.IDictionary]) {
+            $parts = @()
+            foreach ($k in @($v.Keys)) { $parts += (ConvertTo-MiniJson ([string]$k)) + ':' + (ConvertTo-MiniJson $v[$k]) }
+            return '{' + ($parts -join ',') + '}'
+        }
+        if ($v -is [System.Collections.IEnumerable]) {
+            $parts = @()
+            foreach ($e in @($v)) { $parts += (ConvertTo-MiniJson $e) }
+            return '[' + ($parts -join ',') + ']'
+        }
+        return ConvertTo-MiniJson ([string]$v)
+    }
+
+    function Send-Json($ctx, $obj) {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-MiniJson $obj))
+        $ctx.Response.ContentType = "application/json; charset=utf-8"
+        $ctx.Response.ContentLength64 = $bytes.Length
+        $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+        $ctx.Response.Close()   # 不 Close 会挂起 context，GetContext 不再返回后续请求
+    }
+
+    Write-Host "[UI] 选择页已启动：http://localhost:$port （浏览器将自动打开；关闭本窗口或页面点「完成」即退出）"
+    if (-not $env:ASP_UI_NOBROWSER) {
+        try { Start-Process "http://localhost:$port/" } catch { Write-Host "[UI] 无法自动打开浏览器——请手动访问上面的地址" -ForegroundColor Yellow }
+    }
+
+    $lastSeen = Get-Date
+    while ($true) {
+        $ctx = $listener.GetContext()
+        $lastSeen = Get-Date
+        $path = $ctx.Request.Url.AbsolutePath
+        try {
+            if ($path -eq '/' -or $path -eq '/index.html') {
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes($html)
+                $ctx.Response.ContentType = "text/html; charset=utf-8"
+                $ctx.Response.ContentLength64 = $bytes.Length
+                $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+                $ctx.Response.Close()
+            }
+            elseif ($path -eq '/api/state') {
+                $idx = Get-Content (Join-Path $Root "registry/index.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+                $packs = @(); foreach ($p in @($idx.packs.PSObject.Properties)) {
+                    $packs += @{ name = $p.Name; display = $p.Value.display_name; skills = $p.Value.skills_count; price = $p.Value.price_note; desc = $p.Value.display_name; requires = @($p.Value.requires) }
+                }
+                $presets = @(); $presetsDir = Join-Path $Root "packs/base/mcp/presets"
+                Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+                    $rd = Get-Content (Join-Path $_.FullName "README.md") -TotalCount 2 -Encoding UTF8 -ErrorAction SilentlyContinue
+                    if ($rd -and $rd.Count -ge 2) { $presets += @{ name = $_.Name; desc = $rd[1] } }
+                }
+                $detectedIds = @(Find-Agents | ForEach-Object { $_.id })
+                $agents = @(); foreach ($a in (Get-Adapters)) {
+                    $agents += @{ id = $a.id; name = $a.name; detected = ($detectedIds -contains $a.id); hasMcp = ($a.mcp.strategy -notin @('none')); skillsDir = $a.skills_dir }
+                }
+                Send-Json $ctx @{ agents = $agents; packs = $packs; presets = $presets }
+            }
+            elseif ($path -eq '/api/start' -and $ctx.Request.HttpMethod -eq 'POST') {
+                $reader = New-Object System.IO.StreamReader($ctx.Request.InputStream, [System.Text.Encoding]::UTF8)
+                $body = $reader.ReadToEnd() | ConvertFrom-Json
+                if ($uiState.running) { Send-Json $ctx @{ ok = $false; msg = '已有任务在跑' }; continue }
+                $uiLog.Clear(); [void]$uiLog.Add('[UI] 开始安装：包=[' + (@($body.packs) -join ',') + '] MCP=[' + (@($body.presets) -join ',') + '] 目标=[' + (@($body.agents) -join ',') + ']')
+                $uiState.started = $true; $uiState.running = $true; $uiState.done = $false
+                $aspPath = Join-Path $Root 'asp.ps1'
+                $selAgents = @($body.agents); $selPacks = @($body.packs); $selPresets = @($body.presets)
+                $scriptBlock = {
+                    param($aspPath, $selAgents, $selPacks, $selPresets, $log, $state)
+                    function Write-Host { param([Parameter(Position=0)]$Object, $ForegroundColor, $NoNewline) [void]$log.Add([string]$Object) }
+                    $env:ASP_ENGINE = '1'
+                    . $aspPath
+                    $Yes = $true         # 必须在 dot-source 之后：param() 绑定会把 switch 重置为 false
+                    foreach ($p in $selPacks) { try { Invoke-Install $p $selAgents } catch { [void]$log.Add('[错误] ' + $_.Exception.Message) } }
+                    foreach ($m in $selPresets) { try { Invoke-Mcp 'install' $m $selAgents } catch { [void]$log.Add('[错误] ' + $_.Exception.Message) } }
+                    $env:ASP_ENGINE = $null
+                    $state.running = $false; $state.done = $true
+                }
+                $uiPs = [powershell]::Create()
+                [void]$uiPs.AddScript($scriptBlock).AddArgument($aspPath).AddArgument($selAgents).AddArgument($selPacks).AddArgument($selPresets).AddArgument($uiLog).AddArgument($uiState)
+                [void]$uiPs.BeginInvoke()
+                Send-Json $ctx @{ ok = $true }
+            }
+            elseif ($path -eq '/api/progress') {
+                Send-Json $ctx @{ lines = @($uiLog); done = $uiState.done; running = $uiState.running }
+            }
+            elseif ($path -eq '/api/shutdown') {
+                Send-Json $ctx @{ ok = $true }
+                $ctx.Response.Close()
+                break
+            }
+            else { $ctx.Response.StatusCode = 404; $ctx.Response.Close() }
+        } catch { try { $ctx.Response.Close() } catch {} }
+        # 执行完成后 10 分钟无页面活动 → 自动退出（防挂死）
+        if ($uiState.done -and ((Get-Date) - $lastSeen).TotalMinutes -gt 10) { break }
+    }
+    if ($uiPs) { try { $uiPs.Stop(); $uiPs.Dispose() } catch {} }
+    $listener.Stop(); $listener.Close()
+    Write-Host "[UI] 已退出。"
+}
+
+# ---------- 主分发（ASP_ENGINE=1 时跳过——被 UI/外部脚本作为部署引擎加载）----------
+if ($env:ASP_ENGINE -eq '1') {
+    # 引擎模式：只加载函数定义，不执行任何命令
+}
+else {
 switch ($Command.ToLower()) {
     "install" {
         if (-not $Pack) { $Pack = "base" }
@@ -1150,5 +1356,7 @@ switch ($Command.ToLower()) {
     "export"  { Invoke-Export $Out }
     "migrate" { Invoke-Migrate $Pack $All.IsPresent $DryRun.IsPresent }
     "mcp"     { Invoke-Mcp $Pack $TargetDir }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp] [pack]"; exit 1 }
+    "ui"      { Invoke-UI }
+    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp|ui] [pack]"; exit 1 }
+}
 }

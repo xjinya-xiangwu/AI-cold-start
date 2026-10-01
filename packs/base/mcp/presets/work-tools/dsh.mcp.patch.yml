@@ -18,3 +18,9 @@ mcp:
     asp-mslearn:
       command: npx
       args: ["-y", "mcp-remote", "https://learn.microsoft.com/api/mcp"]
+    asp-slack:
+      command: npx
+      args: ["-y", "mcp-remote", "https://slack.com/api/mcp"]
+    asp-asana:
+      command: npx
+      args: ["-y", "mcp-remote", "https://mcp.asana.com/sse"]

@@ -19,6 +19,14 @@
     "asp-mslearn": {
       "type": "http",
       "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "asp-slack": {
+      "type": "http",
+      "url": "https://slack.com/api/mcp"
+    },
+    "asp-asana": {
+      "type": "sse",
+      "url": "https://mcp.asana.com/sse"
     }
   }
 }
