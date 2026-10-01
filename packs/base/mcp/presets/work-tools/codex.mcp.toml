@@ -1,0 +1,20 @@
+# Codex 无内建远程 OAuth 支持：经 mcp-remote 桥接（首次连接在弹窗完成各平台 OAuth 登录）
+[mcp_servers.asp-figma]
+command = "npx"
+args = ["-y", "mcp-remote", "http://127.0.0.1:3845/mcp"]
+
+[mcp_servers.asp-notion]
+command = "npx"
+args = ["-y", "mcp-remote", "https://mcp.notion.com/mcp"]
+
+[mcp_servers.asp-atlassian]
+command = "npx"
+args = ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+
+[mcp_servers.asp-linear]
+command = "npx"
+args = ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+
+[mcp_servers.asp-mslearn]
+command = "npx"
+args = ["-y", "mcp-remote", "https://learn.microsoft.com/api/mcp"]

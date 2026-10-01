@@ -146,3 +146,36 @@ Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
 ```
 
 （2026-10-01 实测：清缓存后 memory 0.6.3 / sequential-thinking 2026.8.31 全部握手 PASS。）
+
+## 六、办公工具官方 MCP（work-tools 预设之外的手动项）
+
+以下同样为官方出品，但需要 key/凭证，走手动配置（安装器永不收集你的 key）：
+
+### GitHub（官方远程，需 PAT）
+
+官方端点 https://api.githubcopilot.com/mcp/（已核实存活）。注册：https://github.com/settings/tokens
+
+```json
+"asp-github": {
+  "type": "http",
+  "url": "https://api.githubcopilot.com/mcp/",
+  "headers": { "Authorization": "Bearer 在这里填你自己的PAT" }
+}
+```
+
+### 飞书 / Lark（官方 npm 包，需应用凭证）
+
+官方包 `@larksuiteoapi/lark-mcp`（Lark Open 官方）。需在飞书开放平台建自建应用拿 App ID/Secret：
+
+```json
+"asp-lark": {
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "@larksuiteoapi/lark-mcp", "mcp", "-a", "<你的AppID>", "-s", "<你的AppSecret>"]
+}
+```
+
+### 未收录声明（诚实边界）
+
+- **draw.io / Axure：无官方 MCP**（2026-10 核实）。drawio 画图需求由包内 mermaid-diagrams skill 覆盖（PRD 内直接渲染，零依赖）；Axure 暂无替代，待其官方支持后评估
+- **Office 桌面套件（Word/Excel/PPT 本地）**：微软官方 MCP 仍在推进中，暂无可用的官方独立端点；GA 后进 work-tools 预设。社区版 m365 server 存在但非官方，仅自行评估使用

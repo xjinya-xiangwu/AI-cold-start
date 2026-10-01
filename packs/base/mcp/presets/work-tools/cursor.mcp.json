@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "asp-figma": {
+      "url": "http://127.0.0.1:3845/mcp"
+    },
+    "asp-notion": {
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "asp-atlassian": {
+      "url": "https://mcp.atlassian.com/v1/sse"
+    },
+    "asp-linear": {
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "asp-mslearn": {
+      "url": "https://learn.microsoft.com/api/mcp"
+    }
+  }
+}

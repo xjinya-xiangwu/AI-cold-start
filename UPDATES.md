@@ -1,5 +1,16 @@
 # UPDATES
 
+## v0.11.0（2026-10-01）— work-tools 办公工具集预设（产品官方 MCP）
+
+新增第二个 MCP 预设档 **work-tools**：日常软件与平台的**产品官方 MCP** 五件，一条命令写入全部已检测 agent（`asp mcp install work-tools`）。收录口径不变：只收官方出品、零自建；配置不存任何密钥（OAuth 类首连在 agent 内授权）。
+
+- **asp-figma**（Figma 官方 Dev Mode MCP）：本地端点 127.0.0.1:3845——需 Figma 桌面客户端运行并开启 Dev Mode MCP Server
+- **asp-notion**（Notion 官方远程 mcp.notion.com）/ **asp-atlassian**（Atlassian 官方，Jira+Confluence）/ **asp-linear**（Linear 官方）：OAuth 远程端点，首连登录即用
+- **asp-mslearn**（Microsoft Learn 官方公开端点）：免鉴权，文档/规范查询
+- 端点已逐一核实存活（2026-10-01：401=存在且 OAuth 门控，405=公开）；codex 走 mcp-remote 桥接，dsh 手动片段同构
+- **诚实边界**：draw.io / Axure 无官方 MCP，不收录（drawio 需求由 mermaid-diagrams skill 覆盖）；Office 桌面套件官方 MCP 未 GA，暂不收录（社区版见 optional-mcp.md 并注明非官方）；GitHub 官方远程需 PAT，归 optional 手动片段；飞书官方 lark-mcp 需应用凭证，同归 optional
+- mcp list 现展示双预设（essentials / work-tools）
+
 ## v0.10.1（2026-10-01）— MCP 来源声明（均为官方出品）
 
 纯文档版：把「收录口径」写显式——essentials 预设三件全部为**官方发行包**，本包零自建 MCP 服务：

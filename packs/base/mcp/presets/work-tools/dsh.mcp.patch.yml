@@ -1,0 +1,20 @@
+# DSH 手动启用 work-tools（DSH 默认不启用 MCP——沙箱安全设计）
+# 将本片段合并进 ~/.dsh/cordis.patch.yml，重启 dsh 后 /mcp 确认连接
+# 鉴权说明：notion/atlassian/linear 首次连接需在 agent 内 OAuth 登录；figma 需 Figma 桌面端运行
+mcp:
+  servers:
+    asp-figma:
+      command: npx
+      args: ["-y", "mcp-remote", "http://127.0.0.1:3845/mcp"]
+    asp-notion:
+      command: npx
+      args: ["-y", "mcp-remote", "https://mcp.notion.com/mcp"]
+    asp-atlassian:
+      command: npx
+      args: ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+    asp-linear:
+      command: npx
+      args: ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]
+    asp-mslearn:
+      command: npx
+      args: ["-y", "mcp-remote", "https://learn.microsoft.com/api/mcp"]

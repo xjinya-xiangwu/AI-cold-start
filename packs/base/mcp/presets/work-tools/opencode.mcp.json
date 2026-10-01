@@ -1,0 +1,24 @@
+{
+  "servers": {
+    "asp-figma": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3845/mcp"
+    },
+    "asp-notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "asp-atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/sse"
+    },
+    "asp-linear": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "asp-mslearn": {
+      "type": "remote",
+      "url": "https://learn.microsoft.com/api/mcp"
+    }
+  }
+}
