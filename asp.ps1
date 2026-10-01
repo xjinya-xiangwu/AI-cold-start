@@ -157,7 +157,10 @@ function Merge-McpConfig([string]$TemplateFile, [string]$TargetPath, [string]$Ke
             $added += $p.Name
         }
     }
-    $cfg | ConvertTo-Json -Depth 32 | ForEach-Object { Write-Utf8NoBom $TargetPath $_ }
+    # v0.8.1（QA BUG-003）：零新增时不写回——用户配置文件字节级不动（否则 PS ConvertTo-Json 会重排格式）
+    if ($added.Count -gt 0) {
+        $cfg | ConvertTo-Json -Depth 32 | ForEach-Object { Write-Utf8NoBom $TargetPath $_ }
+    }
     return @{ added = $added; skipped = $skipped; note = "" }
 }
 
@@ -450,14 +453,18 @@ function Invoke-Install([string]$PackName) {
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
 
     Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
-    # 多包依赖链安装时只确认一次（v0.5.0 分层）
+    # 多包依赖链安装时只确认一次（v0.5.0 分层）；-Yes 跳过确认（v0.8.1：非交互自动化通道，QA BUG-001）
     if (-not $script:AspConfirmed) {
-        $answer = Read-Host "[确认] 全部安装? (Y/n)"
-        if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
-            Write-Host "已取消。"
-            exit 0
+        if ($Yes) {
+            $script:AspConfirmed = $true
+        } else {
+            $answer = Read-Host "[确认] 全部安装? (Y/n)"
+            if ($null -ne $answer -and $answer -ne "" -and $answer.ToLower() -ne "y") {
+                Write-Host "已取消。"
+                exit 0
+            }
+            $script:AspConfirmed = $true
         }
-        $script:AspConfirmed = $true
     }
 
     $report = @()
@@ -620,7 +627,14 @@ function Invoke-Update([string]$PackName) {
     $zipRel = $idx.packs.$PackName.zip
     $zipUrl = ($idx.mirrors[0].TrimEnd('/') + "/" + $zipRel)
     $tmpZip = Join-Path $env:TEMP ("asp-" + [guid]::NewGuid().ToString("N") + ".zip")
-    Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -TimeoutSec 60 -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -TimeoutSec 60 -UseBasicParsing
+    } catch {
+        Write-Host "[错误] 更新包下载失败：$zipUrl" -ForegroundColor Red
+        Write-Host "  常见原因：① registry 版本已更新但 zip 尚未打包（发版间隙，属预期）；② zip 已下架；③ 网络异常。" -ForegroundColor DarkGray
+        Write-Host "  本地安装保持不变，稍后重试即可。" -ForegroundColor DarkGray
+        exit 1
+    }
     $hash = (Get-FileHash $tmpZip -Algorithm SHA256).Hash.ToLower()
     if ($hash -ne $idx.packs.$PackName.sha256.ToLower()) {
         Write-Host "[错误] 哈希校验失败，已中止。" -ForegroundColor Red; exit 1

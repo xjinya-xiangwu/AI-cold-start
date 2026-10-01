@@ -144,7 +144,8 @@ added, skipped = [], []
 for name, val in servers.items():
     if name in container: skipped.append(name)
     else: container[name] = val; added.append(name)
-json.dump(cfg, open(target, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+if added:  # v0.8.1（QA BUG-003）：零新增时不写回，用户配置字节级不动
+    json.dump(cfg, open(target, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print(f"added={','.join(added) or '-'};skipped={','.join(skipped) or '-'}")
 PYEOF
 }
@@ -338,7 +339,7 @@ do_install() {
       r=$(merge_mcp "$packdir/mcp/$mtmpl" "$(expand_tilde "$mtarget")" "$mkey" "$mreq")
       case "$r" in
         "added=-;skipped=-"|"added=-;skipped=-;note=")
-          echo "    MCP: 默认 0 个（增强能力由 skills 承载，如 fresh-docs 文档查新）——可选增强见包内 mcp/optional-mcp.md" ;;
+          echo "    MCP: 默认 0 个 MCP（增强能力由 skills 承载，如 fresh-docs 文档查新）——可选增强见包内 mcp/optional-mcp.md" ;;
         *) echo "    MCP: $r" ;;
       esac
     elif [ "$mstrat" = "merge" ]; then
