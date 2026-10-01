@@ -957,6 +957,163 @@ function Invoke-Migrate([string]$PkgPath, [bool]$AllAgents, [bool]$DryRun) {
     Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# ---------- mcp 子命令：预设一键安装/清单/移除（v0.10.0）----------
+function Get-McpContainer([PSObject]$Cfg, [string]$KeyPath) {
+    if ($KeyPath -eq "mcpServers") {
+        if (-not $Cfg.PSObject.Properties["mcpServers"]) { $Cfg | Add-Member -NotePropertyName "mcpServers" -NotePropertyValue (New-Object PSObject) }
+        return $Cfg.mcpServers
+    }
+    if ($KeyPath -eq "mcp") {
+        if (-not $Cfg.PSObject.Properties["mcp"]) { $Cfg | Add-Member -NotePropertyName "mcp" -NotePropertyValue (New-Object PSObject) }
+        return $Cfg.mcp
+    }
+    if (-not $Cfg.PSObject.Properties["mcp"]) { $Cfg | Add-Member -NotePropertyName "mcp" -NotePropertyValue (New-Object PSObject) }
+    if (-not $Cfg.mcp.PSObject.Properties["servers"]) { $Cfg.mcp | Add-Member -NotePropertyName "servers" -NotePropertyValue (New-Object PSObject) }
+    return $Cfg.mcp.servers
+}
+
+# 物化模板：包回 {"servers":{...}} 外壳；env 值开头的 ~ 展开为主目录；无 npx 时剔除 npx 型服务
+function Materialize-McpTemplate([string]$TplPath, [bool]$HasNpx) {
+    $tpl = Get-Content $TplPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $servers = New-Object PSObject
+    foreach ($p in @($tpl.servers.PSObject.Properties)) {
+        $entry = $p.Value
+        $needsNpx = $false
+        $cmdProp = $entry.PSObject.Properties["command"]
+        if ($cmdProp -and $cmdProp.Value) {
+            if ($cmdProp.Value -is [string] -and $cmdProp.Value -match 'npx') { $needsNpx = $true }
+            if ($cmdProp.Value -is [array] -and (@($cmdProp.Value) -contains 'npx')) { $needsNpx = $true }
+        }
+        if ($needsNpx -and -not $HasNpx) { continue }
+        $envProp = $entry.PSObject.Properties["env"]
+        if ($envProp -and $envProp.Value) {
+            foreach ($e in @($envProp.Value.PSObject.Properties)) {
+                if ($e.Value -is [string] -and $e.Value.StartsWith("~")) { $envProp.Value.PSObject.Properties[$e.Name].Value = $e.Value.Replace("~", $Home) }
+            }
+        }
+        $servers | Add-Member -NotePropertyName $p.Name -NotePropertyValue $entry
+    }
+    $wrapper = New-Object PSObject
+    $wrapper | Add-Member -NotePropertyName "servers" -NotePropertyValue $servers
+    $tmp = Join-Path $env:TEMP ("asp-mcp-" + [guid]::NewGuid().ToString("N") + ".json")
+    Write-Utf8NoBom $tmp ($wrapper | ConvertTo-Json -Depth 32)
+    return $tmp
+}
+
+function Invoke-Mcp([string]$Sub, [string]$Preset) {
+    $presetsDir = Join-Path $Root "packs/base/mcp/presets"
+    if (-not $Preset) { $Preset = "essentials" }
+    $presetDir = Join-Path $presetsDir $Preset
+
+    if (-not $Sub -or $Sub -eq "list") {
+        Write-Host "常用 MCP 预设（asp mcp install [预设名] 一键写入全部已装 agent）:"
+        Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $cnt = 0
+            $tplFile = Join-Path $_.FullName "claude-code.mcp.json"
+            if (Test-Path $tplFile) {
+                $sv = (Get-Content $tplFile -Raw -Encoding UTF8 | ConvertFrom-Json).servers
+                if ($sv) { $cnt = ($sv.PSObject.Properties | Measure-Object).Count }
+            }
+            Write-Host ("  {0,-12} {1} 个服务" -f $_.Name, $cnt)
+            Get-Content (Join-Path $_.FullName "README.md") -TotalCount 3 -Encoding UTF8 | Select-Object -Skip 1 | ForEach-Object { Write-Host ("      " + $_) }
+        }
+        Write-Host ""
+        Write-Host "key 类单服务手动片段（brave/github/notion 等）: packs/base/mcp/optional-mcp.md"
+        return
+    }
+
+    if (-not (Test-Path $presetDir)) { Write-Host ("[错误] 无此预设: {0}（可用: {1}）" -f $Preset, ((Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object Name) -join ", ")) -ForegroundColor Red; exit 1 }
+    $agents = Find-Agents
+    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+
+    if ($Sub -eq "install") {
+        if (-not $Yes) {
+            $confirm = Read-Host ("[确认] 将预设 {0} 写入 {1} 个已检测 agent 的 MCP 配置? (Y/n)" -f $Preset, $agents.Count)
+            if ($null -ne $confirm -and $confirm -ne "" -and $confirm.ToLower() -ne "y") { Write-Host "已取消。"; exit 0 }
+        }
+        $aspData = Join-Path $Home ".asp/data"
+        if (-not (Test-Path $aspData)) { New-Item -ItemType Directory $aspData -Force | Out-Null }
+        $hasNpx = Test-Command "npx"
+        if (-not $hasNpx) { Write-Host "[提示] 未检测到 npx：npx 型服务将跳过（远程型不受影响）；装 Node.js 后重跑可补齐。" -ForegroundColor Yellow }
+        foreach ($a in $agents) {
+            Write-Host ""
+            Write-Host ("==> {0} ({1})" -f $a.name, $a.id) -ForegroundColor Cyan
+            $st = $a.mcp.strategy
+            if ($st -eq "merge" -or $st -eq "json-merge") {
+                $tpl = Join-Path $presetDir $a.mcp.template
+                if (-not (Test-Path $tpl)) { Write-Host "    预设无此 agent 模板，跳过"; continue }
+                $tmp = Materialize-McpTemplate $tpl $hasNpx
+                try {
+                    $r = Merge-McpConfig $tmp (Expand-Tilde $a.mcp.target) $a.mcp.key "" $a.id
+                    if ($r.added.Count -gt 0) { Write-Host ("    MCP 新增: {0}" -f ($r.added -join ", ")) -ForegroundColor Green }
+                    if ($r.skipped.Count -gt 0) { Write-Host ("    已存在跳过: {0}" -f ($r.skipped -join ", ")) -ForegroundColor DarkGray }
+                    if ($r.note) { Write-Host ("    {0}" -f $r.note) -ForegroundColor Yellow }
+                } finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
+            }
+            elseif ($st -eq "toml-managed") {
+                $tpl = Join-Path $presetDir $a.mcp.template
+                if (-not (Test-Path $tpl)) { Write-Host "    预设无此 agent 模板，跳过"; continue }
+                if (-not $hasNpx) { Write-Host "    跳过：该 agent 预设为 npx 型且未检测到 npx" -ForegroundColor Yellow; continue }
+                $raw = [System.IO.File]::ReadAllText($tpl)
+                $tmp = Join-Path $env:TEMP ("asp-mcp-" + [guid]::NewGuid().ToString("N") + ".toml")
+                Write-Utf8NoBom $tmp $raw.Replace("~", $Home)
+                try {
+                    $r = Merge-TomlManaged $tmp (Expand-Tilde $a.mcp.target) "" $a.id
+                    if ($r.added.Count -gt 0) { Write-Host ("    MCP 托管块写入: {0}" -f ($r.added -join ", ")) -ForegroundColor Green }
+                    elseif ($r.updated) { Write-Host "    MCP 托管块已更新" }
+                    if ($r.skipped.Count -gt 0) { Write-Host ("    已存在: {0}" -f ($r.skipped -join ", ")) -ForegroundColor DarkGray }
+                } finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
+            }
+            elseif ($st -eq "template-only" -or $st -eq "manual") {
+                Write-Host ("    手动/模板模式——按片段说明合并: {0}" -f (Join-Path $presetDir $a.mcp.template))
+            }
+            else { Write-Host "    该 agent 不支持 MCP 自动配置，跳过" -ForegroundColor DarkGray }
+        }
+        Write-Host ""
+        Write-Host "[完成] 重启 agent 生效。验证: asp doctor（真实握手逐条体检）" -ForegroundColor Green
+        return
+    }
+
+    if ($Sub -eq "remove") {
+        if (-not $Yes) {
+            $confirm = Read-Host "[确认] 从全部已检测 agent 移除 asp-* 托管 MCP 条目? (Y/n)"
+            if ($null -ne $confirm -and $confirm -ne "" -and $confirm.ToLower() -ne "y") { Write-Host "已取消。"; exit 0 }
+        }
+        foreach ($a in $agents) {
+            $st = $a.mcp.strategy
+            if ($st -eq "merge" -or $st -eq "json-merge") {
+                $target = Expand-Tilde $a.mcp.target
+                if (-not (Test-Path $target)) { continue }
+                $cfg = Get-Content $target -Raw -Encoding UTF8 | ConvertFrom-Json
+                $container = Get-McpContainer $cfg $a.mcp.key
+                $removed = @()
+                foreach ($p in @($container.PSObject.Properties)) { if ($p.Name -like "asp-*") { $container.PSObject.Properties.Remove($p.Name); $removed += $p.Name } }
+                if ($removed.Count -gt 0) {
+                    Backup-File $target $a.id
+                    Write-Utf8NoBom $target ($cfg | ConvertTo-Json -Depth 32)
+                    Write-Host ("  {0}: 移除 {1}" -f $a.id, ($removed -join ", "))
+                } else { Write-Host ("  {0}: 无 asp-* 条目" -f $a.id) -ForegroundColor DarkGray }
+            }
+            elseif ($st -eq "toml-managed") {
+                $target = Expand-Tilde $a.mcp.target
+                if (-not (Test-Path $target)) { continue }
+                $raw = [System.IO.File]::ReadAllText($target)
+                if ($raw -match [regex]::Escape($TomlBegin)) {
+                    Backup-File $target $a.id
+                    $pattern = "(?s)(" + [regex]::Escape($TomlBegin) + ").*?(" + [regex]::Escape($TomlEnd) + ")"
+                    Write-Utf8NoBom $target ($raw -replace $pattern, ($TomlBegin + "`r`n" + $TomlEnd))
+                    Write-Host ("  {0}: 托管块已清空" -f $a.id)
+                }
+            }
+            else { Write-Host ("  {0}: 手动模式，请按其片段文件自行移除 asp-* 条目" -f $a.id) -ForegroundColor DarkGray }
+        }
+        Write-Host "[完成] 重启 agent 生效。" -ForegroundColor Green
+        return
+    }
+
+    Write-Host "用法: asp.ps1 mcp [list|install|remove] [预设名]"; exit 1
+}
+
 # ---------- 主分发 ----------
 switch ($Command.ToLower()) {
     "install" {
@@ -966,6 +1123,8 @@ switch ($Command.ToLower()) {
             Write-Host ("[分层] {0} 包含基础包，将一并安装: {1}" -f $Pack, ($chain -join " -> ")) -ForegroundColor Cyan
         }
         foreach ($p in $chain) { Invoke-Install $p }
+        Write-Host ""
+        Write-Host "常用 MCP 一键装: asp.ps1 mcp install （context7 文档检索 + 跨会话记忆 + 深度思考，零 key）" -ForegroundColor DarkCyan
     }
     "update"  {
         if (-not $Pack) {
@@ -990,5 +1149,6 @@ switch ($Command.ToLower()) {
     "doctor"  { Invoke-Doctor }
     "export"  { Invoke-Export $Out }
     "migrate" { Invoke-Migrate $Pack $All.IsPresent $DryRun.IsPresent }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate] [pack]"; exit 1 }
+    "mcp"     { Invoke-Mcp $Pack $TargetDir }
+    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp] [pack]"; exit 1 }
 }

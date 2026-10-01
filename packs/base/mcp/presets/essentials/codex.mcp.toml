@@ -1,0 +1,12 @@
+[mcp_servers.asp-context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.asp-memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+env = { MEMORY_FILE_PATH = "~/.asp/data/memory.json" }
+
+[mcp_servers.asp-sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]

@@ -47,6 +47,8 @@ foreach ($pk in $includePacks) {
 }
 Copy-Item (Join-Path $Root "adapters") (Join-Path $stage "adapters") -Recurse
 Copy-Item (Join-Path $Root "registry") (Join-Path $stage "registry") -Recurse
+# v0.10.0：剔除 registry/packs 内历史 zip——否则 zip 套 zip 逐版膨胀
+Remove-Item (Join-Path $stage "registry/packs") -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem $Root -File | Where-Object { $_.Name -match '^asp\.(ps1|sh)$|^setup\.|^update\.|^README\.md$' } | ForEach-Object {
     Copy-Item $_.FullName (Join-Path $stage $_.Name)
 }

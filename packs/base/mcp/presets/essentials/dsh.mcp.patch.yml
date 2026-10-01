@@ -1,0 +1,15 @@
+# DSH 手动启用 essentials（DSH 默认不启用 MCP——沙箱安全设计）
+# 将本片段合并进 ~/.dsh/cordis.patch.yml，重启 dsh 后 /mcp 确认连接
+mcp:
+  servers:
+    asp-context7:
+      command: npx
+      args: ["-y", "@upstash/context7-mcp"]
+    asp-memory:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-memory"]
+      env:
+        MEMORY_FILE_PATH: ~/.asp/data/memory.json
+    asp-sequential-thinking:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]

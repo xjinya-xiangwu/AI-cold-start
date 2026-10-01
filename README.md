@@ -35,6 +35,7 @@
 - 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
 - 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
 - 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化；v0.8.0 起默认零 MCP——文档查新等增强能力由 skills 指挥 agent 内置 web 工具完成，无额外运行时与端点依赖
+- 🔌 **一键常用 MCP（v0.10.0，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强（context7 文档检索 / 跨会话记忆 / 深度思考，零 key；无 npx 环境自动降级，只增不覆盖）
 
 ## 快速开始
 
@@ -71,7 +72,15 @@ powershell -ExecutionPolicy Bypass -File asp.ps1 doctor     # macOS/Linux: ./asp
 
 对已部署的每条 MCP 做真实 initialize 握手，输出健康表；任一 FAIL 退出码为 1。
 
-### 3. 装完后第一件事（首用三连）
+### 3. 可选增强：一键常用 MCP（零 key）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File asp.ps1 mcp install
+```
+
+context7 文档检索（远程端点免 node）+ 跨会话记忆 + 深度思考，**一次选择写入全部已装 agent**；无 npx 环境自动降级，`asp doctor` 验证握手。setup.bat 安装时也会问一次。
+
+### 4. 装完后第一件事（首用三连）
 
 打开 agent，任选一条直接发：
 

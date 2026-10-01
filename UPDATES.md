@@ -1,5 +1,27 @@
 # UPDATES
 
+## v0.10.0（2026-10-01）— 常用 MCP 一键装（asp mcp 子命令）
+
+新增 `asp mcp install|list|remove`——一条命令把预设 MCP 写入全部已检测 agent，用户不再逐 agent 逐服务挑配置。v0.8.0「默认零 MCP」决策不变：装不装仍由用户**一次选择**决定，装也是零 key 预设。
+
+- 新增 **essentials 预设**（全零 key 三件）：asp-context7 文档检索（**远程端点** mcp.context7.com，免 node 免 key）、asp-memory 跨会话记忆（npx，`MEMORY_FILE_PATH` 固定 `~/.asp/data/` 防 npx 缓存清理丢数据）、asp-sequential-thinking 深度思考（npx）
+- **逐 agent 格式适配**：claude-code/zcode（http 远程 + stdio）、cursor（url 格式）、opencode（remote + command 数组）各自预设模板；Codex 走 toml 托管块（env inline table）；DSH/Kimi/WorkBuddy 手动型输出片段路径；Trae/Qoder 明示不支持
+- **无 npx 环境自动降级**：物化模板时剔除 npx 型服务、远程型照装，装 Node 后重跑补齐；env 值开头的 `~` 自动展开为主目录
+- **只增不覆盖可回退**：同名服务器跳过；`asp mcp remove` 按 asp-* 前缀精确移除（JSON 容器与 Codex 托管块，改前自动备份）
+- setup.bat 安装后一次询问「是否同时装常用 MCP」（选 Y 自动带 -Yes 全装）；`asp install` 完成提示一键命令
+- build-release 打包剔除 registry/packs 旧 zip，止住 zip 套 zip 膨胀；asp.sh（mac）本轮未同步 mcp 子命令，待 mac 实测一并补
+
+## v0.9.0（2026-10-01）— 基础包效率与体验层（补录）
+
+基础包新增 5 个工具型 skills（20 → 25），全部来自 MIT 开源社区头部项目的中文化改造（声明见 packs/base/THIRD-PARTY-NOTICES.md；此条目为 v0.10.0 发布时补录）：
+
+- **ponytail 懒人梯子**（效率与体验）：七级梯子强制最简可行；修 bug = 修根因处一次；lite/full/ultra 三档（改造自 dietrichgebert/ponytail，MIT，149K★）
+- **adhd-mode 可执行输出**（效率与体验）：行动先行/编号步骤/状态重述/具体时间预估/胜利可见/零客套（改造自 ayghri/i-have-adhd，MIT，52K★）
+- **systematic-debugging 系统化排查**（质量保障）：四段法铁律"根因未查明禁止修"，修复失败 3 次 = 质疑架构（改造自 obra/superpowers，MIT，293K★）
+- **verify-before-done 完成前验证**（质量保障）：证据先于断言，子工具成功汇报一律独立核验（改造自 obra/superpowers）
+- **brainstorming 想法→设计**（思路与决策）：三路径判级（快验/有界/架构）+ 实现前批准硬门（改造自 obra/superpowers）
+- AGENTS.md 双层地图扩至 25/37；base 新增 THIRD-PARTY-NOTICES.md；双包 zip 入仓修复 v0.8.x 下载 404 间隙；7 agent 重装实测通过
+
 ## v0.8.1（2026-10-01）— QA 缺陷修复（4/4，沙箱回归 19/19 全绿）
 
 依据 docs/qa/TEST-REPORT-v0.8.0.md 的缺陷登记全量修复并回归：

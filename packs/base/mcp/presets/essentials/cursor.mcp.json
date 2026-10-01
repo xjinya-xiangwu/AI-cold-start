@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "asp-context7": {
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "asp-memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": { "MEMORY_FILE_PATH": "~/.asp/data/memory.json" }
+    },
+    "asp-sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  }
+}

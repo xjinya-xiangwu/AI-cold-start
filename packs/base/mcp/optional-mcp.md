@@ -13,6 +13,21 @@ v0.8.0 起基础包**默认不装任何 MCP**：增强能力全部由 skills 承
 
 原则不变：**安装器永不收集你的 API key**。
 
+## 〇·五、一键装（v0.10.0）：不用逐个挑——`asp mcp install`
+
+一条命令把「常用三件」写入全部已检测 agent（merge 型自动合并、Codex 写托管块、手动型给出片段路径）：
+
+```powershell
+asp.ps1 mcp install      # 默认预设 essentials：context7 + memory + sequential-thinking（全零 key）
+asp.ps1 mcp list         # 预设清单
+asp.ps1 mcp remove       # 从全部 agent 移除 asp-* 托管条目（改前自动备份）
+```
+
+- **无 npx 环境自动降级**：npx 型服务跳过、远程型（context7）照装；装 Node.js 后重跑补齐
+- **只新增不覆盖**：你自己配过的同名服务器一律跳过；装完 `asp doctor` 逐条验握手
+- setup.bat 安装完会问一次「是否同时装常用 MCP」——一次选择，全 agent 生效，不再逐个挑
+- 下文的手动片段仍适用于 key 类服务（brave/github/notion 等，永不经过安装器）
+
 ## 一、推荐可选：asp-context7（文档检索增强，远程零依赖）
 
 官方托管远程端点，无需 node/npx。已装 fresh-docs 的 agent 会在检测到它时自动优先使用（降级链第一档）。
@@ -120,3 +135,13 @@ args = ["-y", "@upstash/context7-mcp"]
 ## 五、接入与验证
 
 把片段合并进对应 agent 的配置文件（key 格式按各 agent 环境变量写法调整），重启 agent，然后运行 **`asp doctor`** 逐条实测握手——PASS 才算数。
+
+### 排障：npx 型服务 FAIL 报 `ERR_MODULE_NOT_FOUND ... zod`
+
+npx 缓存损坏（历史版本残留）所致，与配置无关。清掉损坏的缓存条目后重试：
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
+```
+
+（2026-10-01 实测：清缓存后 memory 0.6.3 / sequential-thinking 2026.8.31 全部握手 PASS。）
