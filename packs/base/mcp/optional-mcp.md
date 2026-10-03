@@ -199,5 +199,6 @@ Remove-Item "$env:LOCALAPPDATA\npm-cache\_npx\*" -Recurse -Force
 
 ### 未收录声明（诚实边界）
 
-- **draw.io / Axure：无官方 MCP**（2026-10 核实）。drawio 画图需求由包内 mermaid-diagrams skill 覆盖（PRD 内直接渲染，零依赖）；Axure 暂无替代，待其官方支持后评估
+- **draw.io**：~~无官方 MCP~~ **已更正（2026-10-03）**：官方 MCP 已存在（jgraph/drawio-mcp，Apache-2.0；Registry 镜像 mcp/io.draw/mcp），已列入候选目录 `docs/MCP-CANDIDATES.md`（首批试评·本地 `@drawio/mcp` 版）。包内 mermaid-diagrams skill 仍为默认零依赖覆盖，两者不同时默认启用
+- **Axure**：暂无替代，待其官方支持后评估
 - **Office 桌面套件（Word/Excel/PPT 本地）**：微软官方 MCP 仍在推进中，暂无可用的官方独立端点；GA 后进 work-tools 预设。社区版 m365 server 存在但非官方，仅自行评估使用
