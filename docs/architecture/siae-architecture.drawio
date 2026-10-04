@@ -1,55 +1,215 @@
-<mxfile host="app.diagrams.net" modified="2026-10-02T13:00:00.000Z" agent="kurtx/ZCode" version="24.7.5">
-  <diagram id="siae-layered-arch" name="SIAE 分层架构">
-    <mxGraphModel dx="1000" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="880" pageHeight="880" math="0" shadow="0">
+<mxfile host="app.diagrams.net" agent="ZCode" version="24.7.17">
+  <diagram id="siae-three-loop-architecture" name="SIAE 三环架构总图">
+    <mxGraphModel dx="1600" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1980" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="SIAE 自进化智能体环境包 · 分层架构总图（信息采集 → 自进化） v2026-10-02" style="text;html=1;fontSize=17;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="60" y="16" width="760" height="32" as="geometry" />
+        <mxCell id="title" value="SIAE 自进化智能体环境包 · 三环架构总图 v3（对齐评审版 v3.1 §4.4-§4.6 与开发级 PRD v0.2）" style="text;html=1;align=center;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="120" y="12" width="1760" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="base" value="&lt;b&gt;支撑底座（贯穿全层）：SIAE 总控协议层&lt;/b&gt;&lt;br&gt;AGENTS.md 会话首尾协议 · STATUS 全貌快照 · broadcast/log 广播 · 子仓库 gitlinks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=middle;align=center;spacing=6;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="60" width="760" height="56" as="geometry" />
+        <mxCell id="bandPub" value="公共环 · 维护者（外部情报 → 方法包）✅ 运转中" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#ffffff;container=1;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="56" width="1160" height="132" as="geometry" />
         </mxCell>
-        <mxCell id="L0" value="&lt;b&gt;L0 感知层 · 信息采集&lt;/b&gt;（每日 08:30 自动）&lt;br&gt;外部世界：aihot 精选流（主通道）/ GitHub 三路 / 四家 harness 发版正文&lt;br&gt;→ daily-collect.py（24h 窗口 · sha256 全库去重 · 幂等）→ 本地素材库 SIAE-materials（jsonl，canonical）&lt;br&gt;→ Notion「SIAE 素材库」db（人读视图；Status：未筛/周报/试评/观察/拒）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacing=8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="148" width="760" height="96" as="geometry" />
+        <mxCell id="p1" value="L0 感知采集 08:30&#10;三通道：aihot 精选流 / GitHub 新星 / harness 发版&#10;daily-collect → SIAE-materials jsonl" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="bandPub">
+          <mxGeometry x="16" y="42" width="235" height="72" as="geometry" />
         </mxCell>
-        <mxCell id="L1" value="&lt;b&gt;L1 过滤层 · 规则引擎 + 校准闭环&lt;/b&gt;（每周）&lt;br&gt;keywords.json 五支柱评分分桶（P1 模型 / P2 技能 / P3 harness / P4 方法 / PM）· 双人格（PM 用户版 ≠ 内部过滤）&lt;br&gt;校准：误桶样本 → gold → 规则修订 → 重放对账；--eval 度量 precision / recall / 误桶率（目标 ≥80% / &lt;10%）&lt;br&gt;产出：周报草稿 = Δ动作卡（A/B/C）+ S/M 榜 + gold 负样本" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacing=8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="272" width="760" height="104" as="geometry" />
+        <mxCell id="p2" value="L1 过滤&#10;keywords 五支柱分桶 / 否决 V0-V5 / 五维打分&#10;--eval 度量 + gold 校准闭环（v1.0→1.2.1）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="bandPub">
+          <mxGeometry x="277" y="42" width="285" height="72" as="geometry" />
         </mxCell>
-        <mxCell id="L2" value="&lt;b&gt;L2 决策层 · 周会&lt;/b&gt;（每周）&lt;br&gt;读者分离：周报给 agent（A 自动排程 / B 沙箱对照 / C 等拍板）· 决策简报给老板（一页纸 C 类）· PM 用户版（商品形态）&lt;br&gt;用户三态：试评（仅进评测池）｜观察（默认，不执行）｜不考虑" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;align=left;spacing=8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="404" width="760" height="88" as="geometry" />
+        <mxCell id="p3" value="L2 周会决策&#10;Codex 模板周报（A/B/C 动作分级）&#10;Notion 09 三态：试评 / 观察 / 不考虑" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="bandPub">
+          <mxGeometry x="588" y="42" width="255" height="72" as="geometry" />
         </mxCell>
-        <mxCell id="L3" value="&lt;b&gt;L3 执行层 · 环境变更&lt;/b&gt;&lt;br&gt;L3a 分发 asp：install / update / mcp 预设 / doctor / export → 10 agent（packs：base 25 + ai-pm 12；managed-section 只增不覆盖）&lt;br&gt;L3b 同步 agent-sync：age 凭证加密 / MCP 拉齐 / 跨端一致（契约：asp 管结构 · agent-sync 管值）&lt;br&gt;评测与回归门：试评 → 同题公开样本 + held-out → 过门才入 L1 / 商品" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacing=8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="520" width="760" height="112" as="geometry" />
+        <mxCell id="p4" value="方法包周更 → registry&#10;base 25 + ai-pm 12 技能 · AGENTS.md 托管段&#10;默认零 MCP · 离线快照优先" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="bandPub">
+          <mxGeometry x="869" y="42" width="265" height="72" as="geometry" />
         </mxCell>
-        <mxCell id="L4" value="&lt;b&gt;L4 反馈与沉淀层 · 知识库&lt;/b&gt;&lt;br&gt;回执闭环：执行结果 → 下期周报第 0 节（已排程 ≠ 完成，回执为准）&lt;br&gt;沉淀物：gold 负样本 / 校准存证 / held-out / 拒收理由 / 决议与回执&lt;br&gt;知识存储分层：L0 外部事实+拒收理由 / L1 过评测与发布门的包内容 / L2 真实使用+专家纠错 / L4 gold+版本回滚" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;verticalAlign=top;align=left;spacing=8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="660" width="760" height="104" as="geometry" />
-        </mxCell>
-        <mxCell id="note" value="注：L0-L4 双语义——流程层（本图，信息在漏斗中的位置）vs 知识存储分层（入库门槛与信任等级），同名不同义，检索按上下文区分。&lt;br&gt;分层检索表与各层详情：Notion 主文档 §4.1 及各模块子页（SIAE 总控 / 产品中心 L3a / 情报漏斗 / 跨端同步 L3b）。" style="text;html=1;fontSize=11;align=left;verticalAlign=top;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="60" y="788" width="760" height="48" as="geometry" />
-        </mxCell>
-        <mxCell id="eBase" value="协议约束（贯穿全层）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#666666;fontSize=10;fontColor=#666666;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="base" target="L0">
+        <mxCell id="ep1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;endArrow=block;endFill=1;" edge="1" parent="bandPub" source="p1" target="p2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#6c8ebf;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="L0" target="L1">
+        <mxCell id="ep2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;endArrow=block;endFill=1;" edge="1" parent="bandPub" source="p2" target="p3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#82b366;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="L1" target="L2">
+        <mxCell id="ep3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;endArrow=block;endFill=1;" edge="1" parent="bandPub" source="p3" target="p4">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#d79b00;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="L2" target="L3">
+        <mxCell id="bandExp" value="专家环 · 受控供给（付费授权采集 → 专业数据 → 专家包）P3 · 协议先行 · D24 预算暂缓 🔶" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#ffffff;container=1;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="228" width="1160" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="x1" value="合作授权+白名单预览&#10;邀约验真 → 签约（D25）&#10;逐项勾选脱敏提交 R30/R31" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="16" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="x2" value="隔离暂存+权利硬门&#10;G0-G1：不执行脚本/MCP/hooks&#10;密钥·未授权资料排除 R32" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="199" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="x3" value="专业卡 expert-0.1&#10;+ 来源账本 source→license&#10;→card→package R33/R34" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="382" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="x4" value="专家确认&#10;+ 非贡献者独立复核 G2&#10;单专家可复现" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="565" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="x5" value="条件融合 + 三臂评测 G3-G4&#10;共识/分支/冲突保留 · 消融&#10;held-out 防污染 R35" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="748" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="x6" value="净化包发布/撤回&#10;→ registry（仅许可内）&#10;附来源与评测报告 R36" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandExp">
+          <mxGeometry x="931" y="42" width="172" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ex1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;endArrow=block;endFill=1;" edge="1" parent="bandExp" source="x1" target="x2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="L3" target="L4">
+        <mxCell id="ex2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;endArrow=block;endFill=1;" edge="1" parent="bandExp" source="x2" target="x3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="eLoop" value="自进化回路：回执 / gold / 遥测回流（感知-校准半环 ✅ 已通；动作-执行-反馈半环 🔶 待建：A 类执行回路 · C0 遥测 · AGENT-COMPOSE 槽——两环合拢 = 环境自进化）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeWidth=2;strokeColor=#b85450;fontSize=10;fontColor=#b85450;exitX=0;exitY=0.5;entryX=0;entryY=0.5;verticalAlign=bottom;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="L4" target="L1">
+        <mxCell id="ex3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;endArrow=block;endFill=1;" edge="1" parent="bandExp" source="x3" target="x4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ex4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;endArrow=block;endFill=1;" edge="1" parent="bandExp" source="x4" target="x5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ex5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;endArrow=block;endFill=1;" edge="1" parent="bandExp" source="x5" target="x6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bandPri" value="私有环 · 用户 vault（D17：唯一私有副本归用户）· P0 止损 → P1 引擎 🔶" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#ffffff;container=1;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="1160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" value="捕获多通道&#10;明确口令（兜底）/ 会中自记 / 会后复盘&#10;冷启动访谈 3 问 + 资料导入（P1）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="bandPri">
+          <mxGeometry x="16" y="42" width="215" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" value="暂存 inbox/staging（Agent 只产候选）→ 可信提交器 asp vault commit&#10;路径白名单 → schema 校验 → 敏感 lint（拒收记 blocked_sensitive）→ 去重/状态转移&#10;→ 单写者锁 + revision 乐观锁 → 原子写 → 快照（R15/B2）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="bandPri">
+          <mxGeometry x="256" y="42" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" value="用户 vault ~/.asp/vault/（D17）&#10;profile / projects / rules / glossary / cases&#10;skills my-* / overlays / private（不导出）&#10;settings.yaml / log · 权益与同意 D20-22" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="bandPri">
+          <mxGeometry x="681" y="42" width="252" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" value="渲染 render&#10;确定性路由 + 托管块&#10;常驻 ≤1,500 字 + overlay 重放" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="bandPri">
+          <mxGeometry x="958" y="42" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="es1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;endArrow=block;endFill=1;" edge="1" parent="bandPri" source="s1" target="s2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="es2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;endArrow=block;endFill=1;" edge="1" parent="bandPri" source="s2" target="s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="es3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;endArrow=block;endFill=1;" edge="1" parent="bandPri" source="s3" target="s4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bandLoad" value="装载与跨端（L3a asp 管结构 / L3b agent-sync 管加密值 · D14）" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;container=1;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="56" width="560" height="484" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" value="asp 安装器（双击即用）&#10;探测 → 已购清单勾选 → 备份 → 写入&#10;R00-R03 修复中：嵌套目录 / 覆盖备份 / export 去凭证（D18）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="bandLoad">
+          <mxGeometry x="20" y="44" width="520" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="适配器 × 10 agent&#10;instructions / skills_dir / migrate / smoke&#10;+ write_scope / memory / transcripts / hooks（P1 实测，unknown 不当 supported）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="bandLoad">
+          <mxGeometry x="20" y="138" width="520" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="覆盖顺序（安全/合规/授权边界不可覆盖）&#10;用户 vault/overlay ＞ 团队层（预留）&#10;＞ 用户选择的专家包 ＞ 维护者通用包" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="bandLoad">
+          <mxGeometry x="20" y="232" width="520" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" value="Agent-sync L3b&#10;age 加密值通道 / 无 git 迁移（P2，R22）&#10;FORMATS.md 8 端格式差异" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="bandLoad">
+          <mxGeometry x="20" y="326" width="520" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" value="各 Agent 运行时（10 端）&#10;skills 目录 + AGENTS.md 托管段 + 可选 MCP（默认 0）&#10;写入 ≠ 加载 ≠ 任务遵从：三层证据分开记录" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="bandLoad">
+          <mxGeometry x="20" y="420" width="520" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="el1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;endArrow=block;endFill=1;" edge="1" parent="bandLoad" source="l1" target="l2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="el2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;endArrow=block;endFill=1;" edge="1" parent="bandLoad" source="l2" target="l3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="el3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;endArrow=block;endFill=1;" edge="1" parent="bandLoad" source="l3" target="l4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="el4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d79b00;endArrow=block;endFill=1;" edge="1" parent="bandLoad" source="l4" target="l5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bandUse" value="用户使用与回归（闭环证据：捕获 → 确认 → 文件/快照 → 新会话真实遵从）" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#b0e3e6;strokeColor=#29a3b8;swimlaneFillColor=#ffffff;container=1;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="120" y="588" width="1760" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" value="任务开始检查点&#10;Agent 读 settings 与 log 摘要&#10;（引擎无后台进程，§5.7）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#29a3b8;fontSize=10;" vertex="1" parent="bandUse">
+          <mxGeometry x="16" y="42" width="295" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" value="事件日志 JSONL（仅本机）&#10;task_start / rule_loaded / correction / render_result…&#10;evidence_type：observed / self_reported / user_confirmed" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#29a3b8;fontSize=10;" vertex="1" parent="bandUse">
+          <mxGeometry x="335" y="42" width="375" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" value="私有回归 + gold/held-out 发版门&#10;装前/装后 5 任务 × 3 Agent 盲评（R02）&#10;协议/技能变更过回归（R23，promptfoo）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#29a3b8;fontSize=10;" vertex="1" parent="bandUse">
+          <mxGeometry x="734" y="42" width="390" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" value="指标字典 v1.0（PRD §8.2 唯一口径）&#10;捕获采纳率 / 重犯率 / 迁移保持率&#10;update 活跃率 / lite→付费 / 入群率" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#29a3b8;fontSize=10;" vertex="1" parent="bandUse">
+          <mxGeometry x="1148" y="42" width="350" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" value="P2 迁移&#10;age 加密单文件 → 新机还原&#10;同题保持率 ≥90%（R22）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#29a3b8;fontSize=10;dashed=1;" vertex="1" parent="bandUse">
+          <mxGeometry x="1522" y="42" width="222" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="eu1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#29a3b8;endArrow=block;endFill=1;" edge="1" parent="bandUse" source="u1" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eu2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#29a3b8;endArrow=block;endFill=1;" edge="1" parent="bandUse" source="u2" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eu3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#29a3b8;endArrow=block;endFill=1;" edge="1" parent="bandUse" source="u3" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eu4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#29a3b8;dashed=1;endArrow=block;endFill=1;" edge="1" parent="bandUse" source="u4" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bandBase" value="支撑底座（贯穿全环）" style="swimlane;html=1;startSize=30;rounded=0;arcSize=2;fontSize=13;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;container=1;collapsible=0;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="748" width="1760" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" value="SIAE 总控协议&#10;STATUS.md 唯一事实源 · broadcast/log.md · AGENTS.md" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="bandBase">
+          <mxGeometry x="16" y="34" width="330" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" value="registry 静态托管 + 周更&#10;index.json + packs 双 zip + 适配器下发" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="bandBase">
+          <mxGeometry x="366" y="34" width="330" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="b3" value="数据边界 P0&#10;私人层 P / 工作层 W / 商品层 C + 发布门&#10;用户 vault 不进任何 SIAE 仓库" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="bandBase">
+          <mxGeometry x="716" y="34" width="350" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" value="三份核心文档（唯一规格源）&#10;评审版 v3.1 · 开发级 PRD v0.2 · 专家规格 v0.1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="bandBase">
+          <mxGeometry x="1086" y="34" width="350" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="b5" value="MCP 候选池 v1.0（16 项·首批试评 5）&#10;默认 0 MCP · 试评 ≠ 入包" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="bandBase">
+          <mxGeometry x="1456" y="34" width="288" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="mPub" value="方法包 · 周更" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#6c8ebf;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.125;entryDx=0;entryDy=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="bandPub" target="bandLoad">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mExp" value="净化包 · 许可内 🔶" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#9673a6;dashed=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.449;entryDx=0;entryDy=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="bandExp" target="bandLoad">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mPri" value="vault 渲染 · overlay 🔶" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.781;entryDx=0;entryDy=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="bandPri" target="bandLoad">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mLoad" value="装载（写入 ≠ 加载 ≠ 遵从）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;strokeColor=#d79b00;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="bandLoad" target="bandUse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="loopUse" value="①" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;fontColor=#2d6a2d;" edge="1" parent="1" source="bandUse" target="bandPri">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="24" y="712" />
-              <mxPoint x="24" y="324" />
+              <mxPoint x="60" y="630" />
+              <mxPoint x="60" y="470" />
             </Array>
           </mxGeometry>
+        </mxCell>
+        <mxCell id="loopGold" value="②" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#6c8ebf;endArrow=block;endFill=1;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;fontColor=#33517a;" edge="1" parent="1" source="bandUse" target="bandPub">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="24" y="672" />
+              <mxPoint x="24" y="122" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="loopExp2" value="③" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.55;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;fontColor=#6a4a80;" edge="1" parent="1" source="bandLoad" target="bandExp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1300" y="322" />
+              <mxPoint x="1300" y="294" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend1" value="&lt;b&gt;回路：&lt;/b&gt;① 使用/纠错 → 捕获（私有环主回路 🔶 P1 待建）　② gold/评测反馈 → 方法包与判断标准（✅ 公共环回路）　③ 评测缺口 → 定向补采（专家环回路 🔶）&lt;br&gt;&lt;b&gt;三环数据权利（互不自动回流）&lt;/b&gt;：公共环＝维护者公共资产｜私有环＝用户所有，原文不回传维护者｜专家环＝受控授权，sources/rights/eval 独立存储不进公开仓&lt;br&gt;&lt;b&gt;编号约定（同名不同义）&lt;/b&gt;：流程层 L0 采集→L1 过滤→L2 决策（公共环内）≠ 知识存储分层 L0 外部事实 / L1 包内容 / L2 用户 vault（D17）/ L4 gold 与回滚点" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;align=left;spacingLeft=10;spacingTop=6;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="120" y="864" width="1080" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2" value="&lt;b&gt;证据纪律（I6 反假同步）&lt;/b&gt;&lt;br&gt;安装（文件落位）≠ 加载（新会话读到 vault）≠ 闭环（纠正→确认→文件→新会话遵从）&lt;br&gt;效果未过门不得宣称：越用越懂你 / 换 Agent 不归零 / 专家级 / 多专家更强&lt;br&gt;图源 v3：SIAE diagrams/ + acs docs/architecture/ 同名覆盖（Notion raw URL 自动更新）" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;align=left;spacingLeft=10;spacingTop=6;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="864" width="650" height="100" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
