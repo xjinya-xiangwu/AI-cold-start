@@ -1,6 +1,8 @@
 # 环境迁移（asp export / asp migrate）
 
 > v0.6.0 新增。零外部依赖：Windows 用自带 PowerShell 5.1（+robocopy/tar），macOS/Linux 用自带 bash+python3（+tar）。
+>
+> **⚠️ 2026-10-05 PRD 审计口径（D18）**：当前导出会**原样打包 MCP 配置**（含明文 key 即随包泄露），且导出默认落在仓库工作目录（曾致环境包被误提交公开仓）。**GitHub 通道暂停对外推荐**，恢复条件 = R01 完成（export 只保留结构 + 占位符 + 产物 lint 零命中）；在此之前只用本地包方式（U 盘/网盘手动转移），并注意导出产物不要放进任何公开仓库。
 
 ## 是什么
 
@@ -8,7 +10,7 @@
 
 支持 agent（10 个）：Claude Code · Codex · Cursor · opencode · Zcode · DeepSeek Harness · KimiWork · **Trae · Qoder · WorkBuddy**（后三者为国内适配 v0.1：迁移已支持，路径待社区实测修正；包安装待实测后开放）。
 
-## 快速开始（本地包方式；推荐用下方 GitHub 通道）
+## 快速开始（本地包方式；**当前唯一推荐通道**）
 
 ```bash
 # ── 旧机器：导出 ──
@@ -52,7 +54,9 @@ mac/Linux: 双击 migrate-restore.command      或 ./asp.sh migrate <迁移包�
 - migrate 沙箱还原：新增 328 文件 **328/328 哈希一致 ✓**；幂等重跑 0 写入；篡改后重跑触发 [更新]+自动备份 ✓
 - bash 端 E2E：detect→export→migrate→diff 内容一致 ✓（并修复了一个 pre-existing bug：旧版 `expand_tilde` 的 `${1#~/}` 在 bash 模式展开下永不匹配，detect 在 mac/Linux 上会永远为空——已修复）
 
-## GitHub 通道（推荐动线：零 U 盘零网盘，最多经过 GitHub）
+## GitHub 通道（⏸ D18 暂停推荐——以下保留供 R01 实现参考，勿在当前版本对外使用）
+
+> **暂停原因**：见顶部 2026-10-05 口径。R01 落地（结构+占位符+lint）前，本通道会把含 key 的 MCP 配置推上 GitHub。
 
 **一次性准备（旧机器，2 分钟）**：GitHub 网页新建一个 **Private** 仓库（如 `yourname/env-sync`，勾选不初始化），本机 git 已登录（HTTPS 凭据或 SSH）。
 

@@ -4,3 +4,4 @@ _state.json
 !registry/packs/*.zip
 .mimosa/
 collector/state/
+asp-env-*.tar.gz

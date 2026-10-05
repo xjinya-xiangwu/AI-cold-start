@@ -32,10 +32,10 @@
 - 🧩 **一键安装**：Windows 双击 `setup.bat`，全程中文提示
 - 🩺 **MCP 体检（v0.7.0）**：`asp doctor` 对已部署的每条 MCP 做**真实 initialize 握手**，PASS/WARN/FAIL/SKIP 健康表——「配置写了」不算数，「实测握上手」才算
 - 🔑 **零 key**：默认功能全部无需 API key；key 类增强服务只提供注册引导，**安装器不收集任何 key**
-- ➕ **只增不覆盖**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
+- ➕ **只增不覆盖（配置文件）**：AGENTS.md / MCP 配置经 managed-section 托管块只增不覆盖，改动前自动备份可回滚。**技能目录覆盖/嵌套缺陷（PRD R00）修复中**：已复现 Windows 对已存在技能目录会产生 `技能名/技能名/` 嵌套、mac 会直接覆盖——修复并真机复核前，对已装过技能的机器执行安装/更新前请先手动备份 skills 目录
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
-- 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
-- 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
+- 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验；**⚠️ Windows 已装技能周更嵌套缺陷（R00）修复并 Win10 真机复核前，已装过技能的机器暂不建议双击周更（PRD §2.3 门禁）**
+- 🔁 **环境迁移（v0.6.0 → ⏸ D18 暂停推荐）**：`asp export -Repo <私有仓库>` 通道在凭证去标识化（R01：只导结构 + 占位符）落地前**暂停对外推荐**——当前导出会原样打包 MCP 配置，含 key 即随包上传；过渡期请用本地包方式（详见 [docs/MIGRATE.md](docs/MIGRATE.md) 顶部说明）
 - 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化；v0.8.0 起默认零 MCP——文档查新等增强能力由 skills 指挥 agent 内置 web 工具完成，无额外运行时与端点依赖
 - 🔌 **一键常用 MCP（v0.10.0+，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强，三个官方预设——**essentials**（context7 / 记忆 / 深度思考，零 key）、**work-tools 办公工具集**（Figma / Notion / Jira·Confluence / Linear / Slack / Asana / MS Learn 官方 MCP）、**dev-tools 开发者集**（Microsoft Playwright / MCP 官方 filesystem / Supabase）；全部官方出品零自建，OAuth 在 agent 内登录不存 key，无 npx 环境自动降级，只增不覆盖
 - 🖥️ **两步选择式安装 UI（v0.12.0）**：双击 `setup.bat` 或 `asp ui` 打开本地选择页——**一步选完**部署目标（探测到的 agent）× 内容包 × MCP 预设，**第二步一键执行**：实时进度 → 安装报告（doctor 验证 / 首用指令 / 更新方式）。v0.13.0 升级为**已购清单式**：技能逐项勾选（带简介）、MCP 三档并入清单、支持子集安装。无浏览器环境可用等价命令行（install / mcp install）
