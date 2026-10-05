@@ -1,36 +1,41 @@
 # P0 R00/R01/R03 集成与验证指南
 
-> 状态：**staging（kurtx 机产出，等待 xujinya 真机验证）**。本目录脚本已在 kurtx（Windows 11 / PowerShell 5.1）通过夹具测试，但按 PRD 纪律，**只有 xujinya 真机跑完 `docs/qa/TEST-CASES-P0.md` 才能合入 main 并解除宣传冻结**。
-> 对应审计：2026-10-05 PRD 合规审计 Required #1/#2（R00/R01 未实现）。
+> 状态：**staging（等待 xujinya 真机验证）**。分支 `p0/staging-r00-r01-r03` 上 asp.ps1 / asp.sh **已预补丁**（R00/R03 + R01 全部接入），真机验证通过后才合 main（D19 冻结期间 main 不动）。
+> 2026-10-05 ponytail 削减已执行：原 4 个 apply-r0x-patch.ps1/.sh（357 行）删除——补丁直接落在分支文件上，审查方式改为 `git diff main`（理由：分支即当前 main 拉出，无漂移；补丁器只在 main 持续移动后才有价值）。
 
 ## 交付物
 
-| 文件 | 作用 | 测试状态 |
+| 文件 | 作用 | 验证状态 |
 |---|---|---|
-| `scripts/skill-safe-copy.ps1` | R00/R03 核心模块：`Copy-SkillSafe`（备份+逐项覆盖+未知文件保留）、`Get-NestedSkillDirs`（嵌套检测）、`Repair-NestedSkillDir`（签名校验+备份+未知文件守卫+哈希校验后清理） | ✅ 22/22 断言（本机 PS5.1，`scripts/test-skill-safe-copy.ps1`） |
-| `scripts/apply-r00-patch.ps1` | 把 asp.ps1 三个接入点接上模块（模块加载/install 复制/doctor 扫描）——幂等、锚点失配即中止、先备份到 `_backup/` | ✅ 夹具端到端 + 语法解析 + 幂等二跑 |
-| `scripts/apply-r00-patch.sh` | asp.sh 两个接入点（install 复制行内联 R00 逻辑/doctor 扫描）——同为幂等+锚点校验 | ◻️ bash 语法+内嵌 python 编译通过；端到端在 xujinya 执行 |
-| `scripts/credential-lint.ps1` / `.sh` | R01 前置构件：凭证形态扫描（12 类模式），命中退出码 1，输出打码 | ✅ 双平台夹具（脏=6 类命中+exit 1；净=零命中+exit 0） |
-| `scripts/test-skill-safe-copy.ps1` | 模块测试驱动（从模块文件逐字抽取 R00-CORE region 执行，保证测的是交付代码） | — |
+| `asp.ps1`（已预补丁） | R00：`Copy-SkillSafe` 接入 install 复制（备份+逐项覆盖+未知文件保留）；R01：`Convert-ToPlaceholders` 接入 export（占位符替换 → credential-lint 零命中才打包，报警即中止清暂存）；R03：doctor 嵌套扫描 + 加载三层口径 | PS Parser 语法过；真机用例未跑 |
+| `asp.sh`（已预补丁） | R00：同名技能备份+逐项覆盖（内联循环）；R01：同上 bash 版；doctor 嵌套检测 | bash -n 过；真机用例未跑 |
+| `scripts/skill-safe-copy.ps1` | R00/R03 核心模块 | ✅ 22/22 夹具（真 PS5.1） |
+| `scripts/export-sanitize.ps1` | R01 占位符替换模块 | ✅ 8/8 夹具 |
+| `scripts/credential-lint.ps1/.sh` | R01 最后关卡（12 类凭证形态，命中 exit 1，输出打码） | ✅ 双平台脏/净夹具 |
+| `scripts/test-skill-safe-copy.ps1` / `test-export-sanitize.ps1` | 测试驱动（逐字抽取 region 执行，保证测的是交付代码） | — |
+| `vault/`（schema + 10 夹具 + validate-cards.py + test-fixtures.py） | 私有环 B1 资产（PRD §5.4/T13） | ✅ T13 14/14 |
+| `docs/expert/` 三件 | 专家环暂缓期可做协议 | — |
+| `docs/qa/TEST-CASES-P0.md` | 8 真机用例（验收门） | — |
+| `docs/DOC-MAP.md` | 五子模块 MRD/PRD ↔ 仓库总图 | — |
 
-## xujinya 执行步骤（按顺序）
+## xujinya 执行步骤（已简化——无需打补丁）
 
-1. `git fetch && git checkout p0/staging-r00-r01-r03`（分支名见 SIAE broadcast）
-2. `powershell -ExecutionPolicy Bypass -File scripts\test-skill-safe-copy.ps1` —— 模块自测应 22/22
-3. `powershell -ExecutionPolicy Bypass -File scripts\apply-r00-patch.ps1` —— 接入 asp.ps1（失败会明确报哪个锚点没找到，禁止盲改）
-4. `bash scripts/apply-r00-patch.sh` —— 接入 asp.sh
-5. `git diff` 审查三处改动 + `git diff --stat`
-6. **真机执行 `docs/qa/TEST-CASES-P0.md`**：TC-R00-01（Win10/PS5.1 嵌套复装）→ TC-R00-02（用户改动周更）→ TC-R00-03（mac 备份）→ TC-R00-06（矩阵）→ TC-R03-01（doctor 嵌套检测）
-7. 全过后合入 main、解除 README 宣传冻结（同步改 README:35/37 口径）、gitlink bump 走 SIAE 广播
+1. `git fetch && git checkout p0/staging-r00-r01-r03`
+2. `git diff main -- asp.ps1 asp.sh` —— 审查预补丁内容（接入点：模块加载 / install 复制 / export 打包前 / doctor 扫描）
+3. `powershell -ExecutionPolicy Bypass -File scripts\test-skill-safe-copy.ps1`（期望 22/22）与 `test-export-sanitize.ps1`（期望 8/8）、`python vault\test-fixtures.py`（期望 14/14）——本机自测
+4. **真机执行 `docs/qa/TEST-CASES-P0.md`**：TC-R00-01（Win10/PS5.1 嵌套复装）→ TC-R00-02（用户改动周更）→ TC-R00-03（mac 备份）→ TC-R01-01（export 注入测试 token，断言产物与日志零原值、lint 失败时零输出文件）→ TC-R00-06（平台矩阵）→ TC-R03-01（doctor 三层口径）
+5. 全过后合 main、解除 README 宣传冻结（同步改 README「无损更新/双击周更」口径）、gitlink bump 走 SIAE 广播
 
-## R01（全链已交付，随本分支）
+## 设计要点
 
-交付 = `scripts/export-sanitize.ps1`（占位符替换：JSON 键名规则 + TOML/INI/env 行级规则，8/8 夹具过）+ `scripts/apply-r01-patch.ps1/.sh`（接入 export 打包前：替换 → lint 零命中才打包，报警即中止清理暂存；manifest/说明文案改占位符口径）+ `scripts/credential-lint.ps1/.sh`（最后关卡）。
-xujinya 步骤：在 apply-r00-patch 之后执行 `apply-r01-patch.ps1` / `apply-r01-patch.sh`；验收 = TC-R01-01（注入测试 token 的 export，断言产物与日志零原值、lint 失败时不生成任何输出文件）。
+- **预补丁直落分支**（替代补丁器）：分支即 main 拉出、无漂移，`git diff` 即审查；`git checkout main -- asp.ps1` 一条命令即完整回滚。
+- **逐项覆盖而非整目录替换**：满足 R00 四条验收（零嵌套/顶层新版/用户改动可恢复/未知文件未删）。
+- **Repair 需显式确认**：doctor 只报告；`Repair-NestedSkillDir` 四重守卫（内外同名签名 + 无未知用户文件 + 备份 + 哈希校验）且不自动运行（PRD N1「确认后」）。
+- **lint 输出打码**：命中行只显示前 6 字符+长度，绝不回显完整密钥。
+- **export 默认输出已移出仓库根**（`$HOME/asp-env-*.tar.gz`，原 $PWD 是 9/30 tar.gz 误提交事故的根源）。
 
-## 设计要点（为什么这样做）
+## 已知边界（如实）
 
-- **补丁器而非直接改 asp.ps1**：本机无法真机验证安装器全流程；补丁器锚点失配即中止，杜绝盲改；main 保持 D19 冻结状态直到真机证据就绪。
-- **逐项覆盖而非整目录替换**：`Copy-SkillSafe` 对已存在目录先整目录备份、再只覆盖源内各项——满足 PRD R00 四条验收（零嵌套/顶层新版/用户改动可恢复/未知文件未删）。
-- **Repair 需显式确认**：doctor 只报告嵌套；`Repair-NestedSkillDir` 有"内外同名签名 + 无未知用户文件 + 备份 + 哈希校验"四重守卫，且不自动运行（PRD N1"确认后"）。
-- **lint 输出打码**：命中行只显示前 6 字符+长度，绝不回显完整密钥（评审版 §6 证据纪律）。
+- 真机用例 0 执行——本批全部验证=本机夹具（Windows 11 / PS5.1 / python 3.14）；Win10 真机、mac 真机未跑。
+- `credential-lint` 形态扫描不是万能脱敏，零命中 ≠ 无凭证（PRD §10 人工预览仍必需）。
+- 4 个补丁器已删除；若 main 在验证期间前移，基于新 main 重放（模块本身不动，仅重跑 git diff 审查）。

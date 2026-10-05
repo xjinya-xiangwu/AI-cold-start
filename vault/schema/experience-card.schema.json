@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/xjinya-xiangwu/AI-cold-start/vault/schema/experience-card.schema.json",
   "title": "SIAE 经验卡 schema 1.0（PRD v0.2 §5.4 规格草案的机器可读镜像）",
-  "description": "唯一规格源是 Notion 开发级 PRD v0.2 §5.4；本 Schema 供提交器与夹具校验使用，冲突时以 PRD 为准。单卡一个 YAML 文件，UTF-8、LF；时间 ISO-8601 带时区；机器枚举英文。",
+  "description": "唯一规格源是 Notion 开发级 PRD v0.2 §5.4；冲突时以 PRD 为准。状态注记（ponytail 2026-10-05）：本 Schema 是规格工件，P1 提交器（其消费者）出现前无代码加载它——夹具判定由 validate-cards.py 的内置规则执行，两者需人工保持同步（同步责任见 test-fixtures.py 头注）。单卡一个 YAML 文件，UTF-8、LF；时间 ISO-8601 带时区；机器枚举英文。",
   "type": "object",
   "required": ["schema_version", "id", "revision", "type", "status", "scope", "action", "evidence", "created_at", "updated_at"],
   "additionalProperties": false,

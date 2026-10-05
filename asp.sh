@@ -218,6 +218,19 @@ test_mcp_stdio() { # $1=command $2=args串 $3=requires
 
 do_doctor() {
   echo "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）"
+  # R00/R03 接入：嵌套技能目录检测（历史缺陷签名；doctor 只报告，不自动清理）
+  _da="$(detect_agents)"
+  while IFS='|' read -r _id _name _skills_dir _rest; do
+    [ -z "$_id" ] && continue; [ -z "$_skills_dir" ] && continue
+    _sd="$(expand_tilde "$_skills_dir")"; [ -d "$_sd" ] || continue
+    for _d in "$_sd"/*/; do
+      [ -d "$_d" ] || continue
+      _dn="$(basename "$_d")"
+      [ -d "$_sd/$_dn/$_dn" ] && echo "  ⚠ $_name · 技能目录嵌套(历史缺陷): $_dn/$_dn —— 修复见 docs/P0-R00-INTEGRATION.md"
+    done
+  done <<ASPR00EOF
+$_da
+ASPR00EOF
   local found; found="$(detect_agents)"
   [ -z "$found" ] && { show_guide; exit 0; }
   local pass=0 fail=0 skip=0
@@ -320,7 +333,17 @@ do_install() {
     echo "==> 部署到 $name"
     if [ -d "$packdir/skills" ] && [ -n "$skills_dir" ]; then
       dst="$(expand_tilde "$skills_dir")"; mkdir -p "$dst"
-      find "$packdir/skills" -mindepth 1 -maxdepth 1 -type d ! -name "_*" -exec cp -R {} "$dst" \;
+      # R00：同名技能目录先备份再逐项覆盖（评审复现缺陷：裸 cp -R 无备份覆盖；未知用户文件保留）
+      for _sk in "$packdir"/skills/*/; do
+        [ -d "$_sk" ] || continue
+        _skn="$(basename "$_sk")"; case "$_skn" in _*) continue ;; esac
+        _tdst="$dst/$_skn"
+        if [ -d "$_tdst" ]; then
+          _bk="$dst/_backup/${_skn}-$(date +%Y%m%d-%H%M%S)"
+          mkdir -p "$_bk"; cp -Rp "$_tdst/." "$_bk/" && echo "    备份: $_skn -> $_bk"
+        fi
+        mkdir -p "$_tdst"; cp -Rp "$_sk"/. "$_tdst/"
+      done
       echo "    skills -> $dst"
     fi
     if [ "$imode" = "managed-section" ] && [ -n "$itarget" ]; then
@@ -551,14 +574,68 @@ for line in open(os.environ["ASP_CAND"], encoding="utf-8"):
             items.append({"agent": agent, "type": "file", "rel": rel, "sha256": hashlib.sha256(open(p, "rb").read()).hexdigest(), "bytes": bytes_})
 mf = {"tool": "asp", "tool_version": "0.6.0", "kind": "asp-env-migration",
       "created_at": datetime.datetime.now().astimezone().isoformat(), "host": {"os": "mac/linux"},
-      "items": items, "note": "merge 语义：还原只增改不删除；单项 ≤20MB 默认同步，超大项还原时可选；包内 MCP 配置可能含 API key，请妥善保管"}
+      "items": items, "note": "merge 语义：还原只增改不删除；单项 ≤20MB 默认同步，超大项还原时可选；凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值"}
 json.dump(mf, open(os.path.join(st, "manifest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 open(os.path.join(st, "README-MIGRATE.txt"), "w", encoding="utf-8").write(
   "asp 环境迁移包。还原: 新机器 asp 目录下 ./asp.sh migrate <本包路径>\n"
   "还原时自动检测本机 agent 并可选择导入哪些客户端；单项 ≤20MB 默认同步，超大项按提示勾选。\n"
-  "注意: 包内 MCP 配置可能含 API key，请妥善保管；还原为 merge 语义（不删除目标已有文件）。")
+  "注意: 凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值；还原为 merge 语义（不删除目标已有文件）。")
 PYEOF
-  local outfile="${out:-$PWD/asp-env-$stamp.tar.gz}"
+  # R01 接入（D18/N2）：凭证值 -> 占位符，lint 零命中才打包；报警即中止，不留半成品
+  [ -f "$ROOT/scripts/credential-lint.sh" ] || { echo "[中止] 缺 scripts/credential-lint.sh（R01 依赖）"; rm -rf "$staging"; exit 1; }
+  ASP_EXPORT_STAGING="$staging" python3 - <<'ASPR01PY'
+import json, os, re
+st = os.environ["ASP_EXPORT_STAGING"]
+key_re = re.compile(r"(?i)^(\s*[\w.\-]*(token|api[_-]?key|secret|pat|authorization|password|credential)[\w.\-]*\s*[:=]\s*)(.+?)\s*$")
+n = 0
+for root, _, files in os.walk(st):
+    for fn in files:
+        p = os.path.join(root, fn)
+        if fn.endswith(".json"):
+            try:
+                obj = json.load(open(p, encoding="utf-8"))
+            except Exception:
+                continue
+            changed = [False]
+            def walk(o):
+                if isinstance(o, dict):
+                    for k in list(o.keys()):
+                        v = o[k]
+                        if re.search(r"(?i)(token|api[_-]?key|secret|pat\b|authorization|password|credential)", k) and isinstance(v, str) and v and not v.startswith("<AGENT-SYNC:"):
+                            o[k] = "<AGENT-SYNC:" + k + ">"
+                            n += 1
+                            changed[0] = True
+                        walk(v)
+                elif isinstance(o, list):
+                    for x in o:
+                        walk(x)
+            walk(obj)
+            if changed[0]:
+                json.dump(obj, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        else:
+            try:
+                lines = open(p, encoding="utf-8").read().splitlines(True)
+            except Exception:
+                continue
+            changed = False
+            for i, ln in enumerate(lines):
+                if ln.lstrip().startswith("#"):
+                    continue
+                m = key_re.match(ln)
+                if m:
+                    lines[i] = m.group(1) + '"<AGENT-SYNC:' + m.group(1).strip(" :=\"'") + '>"\n'
+                    n += 1
+                    changed = True
+            if changed:
+                open(p, "w", encoding="utf-8").writelines(lines)
+print("  [R01] 占位符替换:", n, "处")
+ASPR01PY
+  if ! bash "$ROOT/scripts/credential-lint.sh" "$staging"; then
+    echo "[中止] 导出产物命中凭证形态（PRD N2）。已清理暂存，未生成任何输出文件。"
+    rm -rf "$staging"
+    exit 1
+  fi
+  local outfile="${out:-$HOME/asp-env-$stamp.tar.gz}"
   tar -czf "$outfile" -C "$staging" .
 
   # ---- GitHub 通道（ASP_EXPORT_REPO）：包进私有仓库 env 分支，新机器零 U 盘还原 ----

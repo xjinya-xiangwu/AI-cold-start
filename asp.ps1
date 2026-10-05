@@ -32,6 +32,11 @@ $BackupDir   = Join-Path $Root "_backup"
 $BeginMark   = "<!-- asp:begin -->"
 $EndMark     = "<!-- asp:end -->"
 
+# R00/R03 接入：技能安全复制模块（评审复现缺陷修复；scripts/skill-safe-copy.ps1）
+. (Join-Path $PSScriptRoot "scripts/skill-safe-copy.ps1")
+# R01 接入：export 产物占位符替换模块（D18；scripts/export-sanitize.ps1）
+. (Join-Path $PSScriptRoot "scripts/export-sanitize.ps1")
+
 # ---------- 基础工具 ----------
 function Expand-Tilde([string]$Path) {
     if ($Path -like "~/*") { return (Join-Path $Home $Path.Substring(2)) }
@@ -413,6 +418,16 @@ function Invoke-Doctor {
             $rows += [pscustomobject]@{ Agent = $a.name; Server = $e.name; 结果 = $mark; 说明 = $r.detail }
         }
     }
+    # R00/R03：嵌套技能目录检测（历史缺陷签名：技能目录下同名子目录；doctor 只报告，
+    #   修复需显式确认后运行 Repair-NestedSkillDir，见 docs/P0-R00-INTEGRATION.md）
+    foreach ($a in $agents) {
+        if (-not $a.skills_dir) { continue }
+        $sd = Expand-Tilde $a.skills_dir
+        if (-not (Test-Path $sd)) { continue }
+        foreach ($n in (Get-NestedSkillDirs -SkillsDir $sd)) {
+            $rows += [pscustomobject]@{ Agent = $a.name; Server = "-"; 结果 = "WARN"; 说明 = ("技能目录嵌套(历史缺陷): {0} —— 修复见 docs/P0-R00-INTEGRATION.md" -f $n) }
+        }
+    }
     Write-Host ""
     $rows | Format-Table -AutoSize | Out-String -Width 220 | Write-Host
     Write-Host ("[doctor 汇总] PASS {0} · FAIL {1} · SKIP {2}" -f $pass, $fail, $skip)
@@ -484,7 +499,9 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
             if ($SkillFilter) { $want = @($SkillFilter -split ','); $skillDirs = @($skillDirs | Where-Object { $want -contains $_.Name }) }   # UI 技能子集
             if ($skillDirs.Count -gt 0) {
                 foreach ($s in $skillDirs) {
-                    Copy-Item $s.FullName (Join-Path $dst $s.Name) -Recurse -Force
+                    # R00：已存在技能目录 -> 先整目录备份再逐项覆盖（不嵌套、未知用户文件保留）
+                    $r = Copy-SkillSafe -Source $s.FullName -DestinationDir $dst
+                    if ($r.backup) { Write-Host ("      备份: {0} -> {1}" -f $s.Name, $r.backup) }
                 }
                 Write-Host ("    skills: {0} 个 -> {1}" -f $skillDirs.Count, $dst)
                 $report += ("{0}: skills x{1}" -f $a.name, $skillDirs.Count)
@@ -776,16 +793,25 @@ function Invoke-Export([string]$Out) {
     }
     if ($manifestItems.Count -eq 0) { Write-Host "[提示] 未收集到任何可迁移文件。"; exit 0 }
 
+    # R01 接入（D18/N2）：凭证值 -> 占位符，lint 零命中才继续打包；报警即中止并清理暂存，不留半成品
+    $ph = Convert-ToPlaceholders -Dir $staging
+    Write-Host ("[R01] 占位符替换: {0} 处" -f $ph)
+    & (Join-Path $PSScriptRoot "scripts/credential-lint.ps1") $staging
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[中止] 导出产物命中凭证形态（PRD N2）。已清理暂存，未生成任何输出文件。" -ForegroundColor Red
+        Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
     $manifest = @{
         tool = "asp"; tool_version = $MigToolVersion; kind = "asp-env-migration"
         created_at = (Get-Date -Format s)
         host = @{ os = "windows"; user = $env:USERNAME }
         agents = @($agents | ForEach-Object id)
         items = $manifestItems
-        note = "merge 语义：还原只增改不删除；包内 MCP 配置可能含 API key，请妥善保管"
+        note = "merge 语义：还原只增改不删除；凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值"
     }
     Write-Utf8NoBom (Join-Path $staging "manifest.json") ($manifest | ConvertTo-Json -Depth 8)
-    Write-Utf8NoBom (Join-Path $staging "README-MIGRATE.txt") ("asp 环境迁移包（生成于 $(Get-Date -Format s)）`r`n还原：把 asp 目录复制到新机器后运行  powershell -File asp.ps1 migrate <本包路径>`r`n注意：包内 MCP 配置可能含 API key，请妥善保管；还原为 merge 语义（不删除目标已有文件）。")
+    Write-Utf8NoBom (Join-Path $staging "README-MIGRATE.txt") ("asp 环境迁移包（生成于 $(Get-Date -Format s)）`r`n还原：把 asp 目录复制到新机器后运行  powershell -File asp.ps1 migrate <本包路径>`r`n注意：凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值；还原为 merge 语义（不删除目标已有文件）。")
 
     $outFile = if ($Out) { $Out } else { Join-Path $env:TEMP ("asp-env-" + $stamp + ".zip") }
     Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outFile -Force
