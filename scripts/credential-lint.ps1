@@ -59,8 +59,8 @@ foreach ($f in $files) {
 }
 Write-Host ""
 if ($hits -gt 0) {
-    Write-Host ("[结果] 命中 {0} 处 —— 按 PRD N2：lint 报警即中止，禁止导出/提交（先脱敏为占位符）。" -f $hits) -ForegroundColor Red
-    exit 1
+    Write-Host ("[结果] 命中 {0} 处 —— ASP-E-LINT-001：按 DST-P0-02 中止导出（退出码 5）。" -f $hits) -ForegroundColor Red
+    exit 5
 }
 Write-Host "[结果] 零命中。注意：形态 lint 不是万能脱敏，发布前仍需人工预览（PRD §10）。" -ForegroundColor Green
 exit 0

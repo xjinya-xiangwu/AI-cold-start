@@ -46,8 +46,8 @@ done
 
 echo ""
 if [ "$hits" -gt 0 ]; then
-  echo "[结果] 命中 $hits 个文件 —— 按 PRD N2：lint 报警即中止，禁止导出/提交（先脱敏为占位符）。"
-  exit 1
+  echo "[结果] 命中 $hits 个文件 —— ASP-E-LINT-001：按 DST-P0-02 中止导出（退出码 5）。"
+  exit 5
 fi
 echo "[结果] 零命中。注意：形态 lint 不是万能脱敏，发布前仍需人工预览（PRD §10）。"
 exit 0

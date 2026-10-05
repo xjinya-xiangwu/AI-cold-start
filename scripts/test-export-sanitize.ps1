@@ -47,8 +47,11 @@ enabled = true
     $cleanPath = Join-Path $fx "home\clean.json"
     [IO.File]::WriteAllText($cleanPath, '{"a": "normal value"}')
 
-    $n = Convert-ToPlaceholders -Dir $fx
+    $res = Convert-ToPlaceholders -Dir $fx
+    $n = $res.count
+    $red = $res.redactions
     Assert "替换计数 >= 3（token/Authorization/api_key）" ($n -ge 3)
+    Assert "redactions 含 GITHUB_PERSONAL_ACCESS_TOKEN 条目" (@($red | Where-Object { $_.json_path -match "GITHUB_PERSONAL_ACCESS_TOKEN" }).Count -eq 1)
     $j2 = [IO.File]::ReadAllText($jsonPath) | ConvertFrom-Json
     Assert "GITHUB token -> 占位符" ($j2.mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN -eq "<AGENT-SYNC:GITHUB_PERSONAL_ACCESS_TOKEN>")
     Assert "SAFE_VAR 不动" ($j2.mcpServers.github.env.SAFE_VAR -eq "hello")
@@ -61,7 +64,7 @@ enabled = true
     # lint 兜底：替换后残余凭证应能被抓到（故意放一个键名不含关键词的值）
     [IO.File]::WriteAllText((Join-Path $fx "home\hidden.txt"), "cfg=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
     & (Join-Path $PSScriptRoot "credential-lint.ps1") $fx | Out-Null
-    Assert "lint 对残余凭证 exit 1" ($LASTEXITCODE -eq 1)
+    Assert "lint 对残余凭证 exit 5" ($LASTEXITCODE -eq 5)
 } finally {
     if ($Keep) { Write-Host ("夹具保留: " + $fx) -ForegroundColor DarkGray }
     else { Remove-Item $fx -Recurse -Force -ErrorAction SilentlyContinue }

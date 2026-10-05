@@ -232,7 +232,7 @@ do_doctor() {
 $_da
 ASPR00EOF
   local found; found="$(detect_agents)"
-  [ -z "$found" ] && { show_guide; exit 0; }
+  [ -z "$found" ] && { show_guide; echo "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。"; exit 4; }
   local pass=0 fail=0 skip=0
   while IFS='|' read -r id name skills_dir imode itarget ifname mstrat mtarget mkey mtmpl mreq; do
     [ -z "$id" ] && continue
@@ -318,7 +318,7 @@ do_install() {
   [ -d "$packdir" ] || { echo "[错误] 不存在包: $pack"; exit 1; }
   echo "[探测] 扫描本机 AI agent..."
   local found; found="$(detect_agents)"
-  [ -z "$found" ] && { show_guide; exit 0; }
+  [ -z "$found" ] && { show_guide; echo "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。"; exit 4; }
   local names; names="$(echo "$found" | awk -F'|' '{printf "%s  ", $2}')"
   echo "[探测] 发现: $names"
   # 多包依赖链安装时只确认一次（v0.5.0 分层）
@@ -466,7 +466,7 @@ PYEOF
 do_export() { # $1=输出路径（缺省 ./asp-env-<时间戳>.tar.gz）
   local out="${1:-}"
   local found; found="$(detect_agents)"
-  [ -z "$found" ] && { show_guide; exit 0; }
+  [ -z "$found" ] && { show_guide; echo "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。"; exit 4; }
   echo "[探测] 发现: $(echo "$found" | awk -F'|' '{printf "%s  ", $2}')"
   local stamp; stamp=$(date +%Y%m%d-%H%M%S)
   local staging; staging="$(mktemp -d)/asp-mig"
@@ -629,42 +629,33 @@ for root, _, files in os.walk(st):
             if changed:
                 open(p, "w", encoding="utf-8").writelines(lines)
 print("  [R01] 占位符替换:", n, "处")
+mf_path = os.path.join(st, "manifest.json")
+if os.path.exists(mf_path):
+    try:
+        mf = json.load(open(mf_path, encoding="utf-8"))
+        mf["redactions"] = n
+        json.dump(mf, open(mf_path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 ASPR01PY
   if ! bash "$ROOT/scripts/credential-lint.sh" "$staging"; then
-    echo "[中止] 导出产物命中凭证形态（PRD N2）。已清理暂存，未生成任何输出文件。"
+    echo "[中止] ASP-E-LINT-001：导出产物命中凭证形态，已清理暂存，未生成任何输出文件。"
     rm -rf "$staging"
-    exit 1
+    exit 5
   fi
   local outfile="${out:-$HOME/asp-env-$stamp.tar.gz}"
   tar -czf "$outfile" -C "$staging" .
 
-  # ---- GitHub 通道（ASP_EXPORT_REPO）：包进私有仓库 env 分支，新机器零 U 盘还原 ----
+  # ---- GitHub 通道（ASP_EXPORT_REPO）：R01/D18 已暂停（DST-P0-02 第 6 条；原自动 push 路径已删除）----
   if [ -n "${ASP_EXPORT_REPO:-}" ]; then
-    command -v git >/dev/null 2>&1 || { echo "[错误] -Repo 需要 git（未检测到）"; rm -rf "$(dirname "$staging")"; exit 1; }
-    local repodir; repodir="$(mktemp -d)/asp-remote"
-    git clone --depth 1 "$ASP_EXPORT_REPO" "$repodir" 2>/dev/null || { echo "[错误] git clone 失败——先去 GitHub 建 PRIVATE 仓库并确认推送权限"; rm -rf "$(dirname "$staging")" "$repodir"; exit 1; }
-    ( cd "$repodir"       && git checkout -B "${ASP_EXPORT_BRANCH:-env-sync}" 2>/dev/null       && rm -rf env && mkdir -p env       && cp "$outfile" env/env.tar.gz       && printf 'package=env.tar.gz
-exported_at=%s
-source_host=%s@%s
-' "$(date +%Y-%m-%dT%H:%M:%S)" "$(whoami)" "$(hostname)" > env/LATEST.txt       && cp -R "$ROOT/adapters" "$ROOT/packs" "$ROOT/registry" "$ROOT/docs" . 2>/dev/null       && cp "$ROOT/asp.sh" "$ROOT/asp.ps1" "$ROOT/setup.bat" "$ROOT/setup.command" "$ROOT/update.bat" "$ROOT/update.command" . 2>/dev/null       && cp "$ROOT/migrate-export.bat" "$ROOT/migrate-restore.bat" "$ROOT/migrate-export.command" "$ROOT/migrate-restore.command" . 2>/dev/null       && git add -A       && git -c user.name=asp-env-sync -c user.email=asp@local commit -m "env sync $(date +%Y%m%d-%H%M%S)" 2>/dev/null       && git push -u origin "${ASP_EXPORT_BRANCH:-env-sync}"       && git remote set-head origin "${ASP_EXPORT_BRANCH:-env-sync}" 2>/dev/null; git push origin "${ASP_EXPORT_BRANCH:-env-sync}:${ASP_EXPORT_BRANCH:-env-sync}" --force 2>/dev/null; true )
-    local pushok=$?
-    rm -rf "$(dirname "$staging")" "$repodir"
-    if [ $pushok -eq 0 ]; then
-      echo "[完成] 环境已推送到 $ASP_EXPORT_REPO（分支 ${ASP_EXPORT_BRANCH:-env-sync}，env/env.tar.gz）"
-      echo "  新机器三步:"
-      echo "    ① git clone $ASP_EXPORT_REPO"
-      echo "    ② cd 仓库目录 && ./asp.sh install     # 装 asp 运行环境本身"
-      echo "    ③ ./asp.sh migrate env -y             # 从 env/ 一键还原全部环境"
-      echo "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。"
-    else
-      echo "[错误] git push 失败——本地包保留在: $outfile"
-    fi
-    return 0
+    echo "[暂停] GitHub 导出通道已按 R01/D18 暂停（ASP-E-REPO-004）：去凭证链路真机验证前请用本地包。"
+    rm -rf "$(dirname "$staging")"
+    exit 4
   fi
   rm -rf "$(dirname "$staging")"
   echo "[完成] 迁移包: $outfile"
   echo "  还原: 新机器 asp 目录下  ./asp.sh migrate \"$outfile\""
-  echo "  ⚠ 包内可能含 API key（MCP 配置），请妥善保管。"
+  echo "  ⚠ 凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值。"
 }
 
 do_migrate() { # $1=迁移包路径（tar.gz/zip/目录/env 快捷方式/仓库URL）；env: ASP_MIG_YES / ASP_MIG_ALL / ASP_MIG_OVERSIZED / ASP_MIG_DRYRUN
@@ -695,7 +686,7 @@ do_migrate() { # $1=迁移包路径（tar.gz/zip/目录/env 快捷方式/仓库U
 
   # ① 自动检测本机 agent，选择导入哪些客户端
   local found; found="$(detect_agents)"
-  [ -z "$found" ] && { show_guide; exit 0; }
+  [ -z "$found" ] && { show_guide; echo "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。"; exit 4; }
   echo "[检测] 本机已装: $(echo "$found" | awk -F'|' '{printf "%s ", $2}')"
   local selected
   if [ "${ASP_MIG_ALL:-0}" = "1" ]; then

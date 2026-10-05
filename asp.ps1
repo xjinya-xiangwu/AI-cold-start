@@ -383,7 +383,7 @@ function Get-DoctorEntries([object]$Adapter) {
 function Invoke-Doctor {
     Write-Host "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）"
     $agents = Find-Agents
-    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+    if ($agents.Count -eq 0) { Show-Guide; Write-Host "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。" -ForegroundColor Yellow; exit 4 }
     Write-Host ("[doctor] 检测到 {0} 个 agent 配置面，开始体检..." -f $agents.Count)
     $pass = 0; $fail = 0; $skip = 0
     $rows = @()
@@ -466,7 +466,7 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
     Write-Host "[探测] 扫描本机 AI agent..."
     $agents = Find-Agents
     if ($AgentIds.Count -gt 0) { $agents = @($agents | Where-Object { $AgentIds -contains $_.id }) }   # UI/外部指定部署目标子集
-    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+    if ($agents.Count -eq 0) { Show-Guide; Write-Host "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。" -ForegroundColor Yellow; exit 4 }
     Write-Host ("[探测] 部署目标 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
     # 多包依赖链安装时只确认一次（v0.5.0 分层）；-Yes 跳过确认（v0.8.1：非交互自动化通道，QA BUG-001）
     if (-not $script:AspConfirmed) {
@@ -731,7 +731,7 @@ function Get-MigrateCandidates($a) {
 
 function Invoke-Export([string]$Out) {
     $agents = Find-Agents
-    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+    if ($agents.Count -eq 0) { Show-Guide; Write-Host "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。" -ForegroundColor Yellow; exit 4 }
     Write-Host ("[探测] 发现 {0} 个: {1}" -f $agents.Count, (($agents | ForEach-Object name) -join "  "))
 
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -793,14 +793,14 @@ function Invoke-Export([string]$Out) {
     }
     if ($manifestItems.Count -eq 0) { Write-Host "[提示] 未收集到任何可迁移文件。"; exit 0 }
 
-    # R01 接入（D18/N2）：凭证值 -> 占位符，lint 零命中才继续打包；报警即中止并清理暂存，不留半成品
+    # R01 接入（D18/N2）：凭证值 -> 占位符（含 redactions 清单），lint 零命中才继续打包；报警即中止并清理暂存，不留半成品
     $ph = Convert-ToPlaceholders -Dir $staging
-    Write-Host ("[R01] 占位符替换: {0} 处" -f $ph)
+    Write-Host ("[R01] 占位符替换: {0} 处" -f $ph.count)
     & (Join-Path $PSScriptRoot "scripts/credential-lint.ps1") $staging
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[中止] 导出产物命中凭证形态（PRD N2）。已清理暂存，未生成任何输出文件。" -ForegroundColor Red
+        Write-Host "[中止] ASP-E-LINT-001：导出产物命中凭证形态，已清理暂存，未生成任何输出文件。" -ForegroundColor Red
         Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
-        exit 1
+        exit 5
     }
     $manifest = @{
         tool = "asp"; tool_version = $MigToolVersion; kind = "asp-env-migration"
@@ -808,6 +808,7 @@ function Invoke-Export([string]$Out) {
         host = @{ os = "windows"; user = $env:USERNAME }
         agents = @($agents | ForEach-Object id)
         items = $manifestItems
+        redactions = @($ph.redactions | ForEach-Object { $_ })
         note = "merge 语义：还原只增改不删除；凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值"
     }
     Write-Utf8NoBom (Join-Path $staging "manifest.json") ($manifest | ConvertTo-Json -Depth 8)
@@ -816,44 +817,18 @@ function Invoke-Export([string]$Out) {
     $outFile = if ($Out) { $Out } else { Join-Path $env:TEMP ("asp-env-" + $stamp + ".zip") }
     Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outFile -Force
 
-    # ---- GitHub 通道（-Repo）：包进私有仓库的 env 分支，新机器零 U 盘直接还原 ----
+    # ---- GitHub 通道（-Repo）：R01/D18 已暂停（DST-P0-02 第 6 条；原自动 push 路径已删除）----
     if ($Repo) {
-        if (-not (Test-Command git)) { Write-Host "[错误] -Repo 需要 git（未检测到）。先装 git，或去掉 -Repo 用本地包。" -ForegroundColor Red; Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
-        $repoDir = Join-Path $env:TEMP ("asp-remote-" + [guid]::NewGuid().ToString("N"))
-        & git clone --depth 1 $Repo $repoDir 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Host "[错误] git clone 失败——先去 GitHub 建一个 PRIVATE 仓库，并确认本机有推送权限。" -ForegroundColor Red; Remove-Item $staging, $repoDir -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
-        Push-Location $repoDir
-        & git checkout -B $Branch 2>&1 | Out-Null
-        $migDir = Join-Path $repoDir "env"
-        if (Test-Path $migDir) { Remove-Item $migDir -Recurse -Force }
-        New-Item -ItemType Directory -Path $migDir -Force | Out-Null
-        Copy-Item $outFile (Join-Path $migDir "env.zip") -Force
-        Write-Utf8NoBom (Join-Path $migDir "LATEST.txt") ("package=env.zip`r`nexported_at=" + (Get-Date -Format s) + "`r`nsource_host=" + $env:COMPUTERNAME + "\" + $env:USERNAME)
-        & git add -A
-        & git -c user.name="asp-env-sync" -c user.email="asp@local" commit -m "env sync $stamp" 2>&1 | Out-Null
-        & git push -u origin $Branch 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-        $pushOk = ($LASTEXITCODE -eq 0)
-        Pop-Location
-        Remove-Item $staging, $repoDir -Recurse -Force -ErrorAction SilentlyContinue
-        if ($pushOk) {
-            Write-Host ""
-            Write-Host ("[完成] 环境已推送到 {0}（分支 {1}，env/env.zip）" -f $Repo, $Branch) -ForegroundColor Green
-            Write-Host "  新机器三步:" -ForegroundColor Green
-            Write-Host ("    ① git clone {0}" -f $Repo) -ForegroundColor Green
-            Write-Host "    ② 进入目录: asp.ps1 install        （装 asp 运行环境本身）" -ForegroundColor Green
-            Write-Host ("    ③ asp.ps1 migrate env -Yes         （从 env/ 一键还原全部环境）") -ForegroundColor Green
-            Write-Host "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。" -ForegroundColor Yellow
-        } else {
-            Write-Host "[错误] git push 失败——本地包保留在: $outFile（可手动推或 U 盘带过去）" -ForegroundColor Red
-        }
-        return
+        Write-Host "[暂停] GitHub 导出通道已按 R01/D18 暂停（ASP-E-REPO-004）：去凭证链路真机验证前请用本地包。" -ForegroundColor Yellow
+        Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+        exit 4
     }
 
     Remove-Item $staging -Recurse -Force
     Write-Host ""
     Write-Host ("[完成] 迁移包: {0}" -f $outFile) -ForegroundColor Green
     Write-Host "  还原: 新机器 asp 目录下运行  asp.ps1 migrate <本包路径>" -ForegroundColor Green
-    Write-Host "  ⚠ 包内可能含 API key（MCP 配置），请妥善保管。" -ForegroundColor Yellow
+    Write-Host "  ⚠ 凭证值已替换为 <AGENT-SYNC:*> 占位符（R01/D18），由 Agent-sync age 通道补值。" -ForegroundColor Yellow
 }
 
 function Invoke-Migrate([string]$PkgPath, [bool]$AllAgents, [bool]$DryRun) {
@@ -1067,7 +1042,7 @@ function Invoke-Mcp([string]$Sub, [string]$Preset, [string[]]$AgentIds = @()) {
     if (-not (Test-Path $presetDir)) { Write-Host ("[错误] 无此预设: {0}（可用: {1}）" -f $Preset, ((Get-ChildItem $presetsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object Name) -join ", ")) -ForegroundColor Red; exit 1 }
     $agents = Find-Agents
     if ($AgentIds.Count -gt 0) { $agents = @($agents | Where-Object { $AgentIds -contains $_.id }) }
-    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
+    if ($agents.Count -eq 0) { Show-Guide; Write-Host "[blocked] ASP-E-NOAGENT-001：未检测到任何 Agent，无法继续。" -ForegroundColor Yellow; exit 4 }
 
     if ($Sub -eq "install") {
         if (-not $Yes) {

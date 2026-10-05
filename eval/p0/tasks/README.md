@@ -1,0 +1,1 @@
+T1-T5 任务占位：每任务 input.md + rubric.md + fixtures/；定义见 DST-P0-05 与 docs/qa/TEST-CASES-P0.md R02 节。

@@ -9,20 +9,23 @@
 
 #region R01-CORE
 
-function Convert-JsonPlaceholders([object]$node, [string]$KeyNameRx) {
-    # 递归替换 JSON 树中敏感键的字符串值，返回替换处数
+function Convert-JsonPlaceholders([object]$node, [string]$KeyNameRx, [string]$FilePath, [string]$PathPrefix, [System.Collections.ArrayList]$Redactions) {
+    # 递归替换 JSON 树中敏感键的字符串值；redactions 追加 {file, json_path, placeholder}（DST-P0-02）
     $c = 0
     if ($node -is [System.Management.Automation.PSCustomObject]) {
         foreach ($p in @($node.PSObject.Properties)) {
             if ($p.Name -match $KeyNameRx -and $p.Value -is [string] -and $p.Value -and -not $p.Value.StartsWith("<AGENT-SYNC:")) {
-                $node.PSObject.Properties[$p.Name].Value = "<AGENT-SYNC:" + $p.Name + ">"
+                $ph = "<AGENT-SYNC:" + $p.Name + ">"
+                $node.PSObject.Properties[$p.Name].Value = $ph
+                [void]$Redactions.Add(@{ file = $FilePath; json_path = ($PathPrefix + $p.Name); placeholder = $ph })
                 $c++
             } elseif ($null -ne $p.Value -and ($p.Value -is [System.Management.Automation.PSCustomObject] -or ($p.Value -is [System.Collections.IEnumerable] -and $p.Value -isnot [string]))) {
-                $c += Convert-JsonPlaceholders $p.Value $KeyNameRx
+                $c += Convert-JsonPlaceholders $p.Value $KeyNameRx $FilePath ($PathPrefix + $p.Name + ".") $Redactions
             }
         }
     } elseif ($null -ne $node -and $node -is [System.Collections.IEnumerable] -and $node -isnot [string]) {
-        foreach ($x in $node) { $c += Convert-JsonPlaceholders $x $KeyNameRx }
+        $i = 0
+        foreach ($x in $node) { $c += Convert-JsonPlaceholders $x $KeyNameRx $FilePath ($PathPrefix + $i + ".") $Redactions; $i++ }
     }
     return $c
 }
@@ -33,13 +36,14 @@ function Convert-ToPlaceholders {
     $keyNameRx = '(?i)(token|api[_-]?key|secret|authorization|password|credential)'
     $lineRx = '(?i)^(\s*[\w.\-]*(token|api[_-]?key|secret|pat|authorization|password|credential)[\w.\-]*\s*[:=]\s*)["'']?([^"''\r\n]+)["'']?\s*$'
     $count = 0
+    $redactions = New-Object System.Collections.ArrayList
     $files = @(Get-ChildItem $Dir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
         $_.Extension -match '^\.(json|toml|ini|env|template)$' -or $_.Name -like '*.env' -or $_.Name -like '*.template'
     })
     foreach ($f in $files) {
         if ($f.Extension -eq ".json") {
             try { $obj = [System.IO.File]::ReadAllText($f.FullName) | ConvertFrom-Json } catch { continue }
-            $c = Convert-JsonPlaceholders $obj $keyNameRx
+            $c = Convert-JsonPlaceholders $obj $keyNameRx $f.FullName "" $redactions
             $count += $c
             if ($c -gt 0) {
                 $out = $obj | ConvertTo-Json -Depth 12
@@ -60,7 +64,7 @@ function Convert-ToPlaceholders {
             if ($changed) { [System.IO.File]::WriteAllLines($f.FullName, $lines) }
         }
     }
-    return $count
+    return @{ count = $count; redactions = $redactions }
 }
 
 #endregion R01-CORE
