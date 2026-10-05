@@ -92,7 +92,8 @@ function Deploy-ManagedSection([string]$Content, [string]$Target, [string]$Tag =
         if ($raw -match [regex]::Escape($BeginMark)) {
             # 替换标记间内容（保留标记外用户内容）
             $pattern = "(?s)(" + [regex]::Escape($BeginMark) + ").*?(" + [regex]::Escape($EndMark) + ")"
-            $new = $raw -replace $pattern, ($BeginMark + "`r`n" + $Content + "`r`n" + $EndMark)
+            $esc = $Content -replace '\$', '$$'
+            $new = $raw -replace $pattern, ($BeginMark + "`r`n" + $esc + "`r`n" + $EndMark)
             Backup-File $Target $Tag
             Write-Utf8NoBom $Target $new
             return "updated"
@@ -188,6 +189,9 @@ function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$
     if (Test-Path $TargetPath) {
         $raw = [System.IO.File]::ReadAllText($TargetPath)
         Backup-File $TargetPath $Tag
+        if (($raw -match [regex]::Escape($TomlBegin)) -and ($raw -notmatch [regex]::Escape($TomlEnd))) {
+            return @{ added = @(); skipped = @(); note = "检测到孤立 Begin 标记（无 End）——不写入，请手工检查 config.toml"; updated = $false; error = "ASP-E-BLOCK-001" }
+        }
         if ($raw -match [regex]::Escape($TomlBegin)) {
             # 已存在托管块：检测已有服务器是否与模板重名（重名即用户/历史已配，整块替换为最新模板）
             $pattern = "(?s)(" + [regex]::Escape($TomlBegin) + ").*?(" + [regex]::Escape($TomlEnd) + ")"
@@ -195,6 +199,11 @@ function Merge-TomlManaged([string]$TemplateFile, [string]$TargetPath, [string]$
             Write-Utf8NoBom $TargetPath $new
             return @{ added = @(); skipped = @(); note = ""; updated = $true }
         } else {
+            foreach ($n0 in $names) {
+                if ($raw -match ("(?m)^\s*\[mcp_servers\." + [regex]::Escape($n0) + "\]")) {
+                    return @{ added = @(); skipped = $names; note = "用户配置已含同名 mcp_servers 表（托管块外）——不追加，避免重复定义"; updated = $false }
+                }
+            }
             Write-Utf8NoBom $TargetPath ($raw.TrimEnd() + "`r`n`r`n" + $block + "`r`n")
             return @{ added = $names; skipped = @(); note = "" }
         }
@@ -584,6 +593,7 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
     } else {
         $state = @{ packs = @($PackName); pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
     }
+    Clean-BackupRetention -BackupRoot $BackupDir -KeepRuns 10 -KeepDays 30 | Out-Null
     $state | ConvertTo-Json | ForEach-Object { Write-Utf8NoBom $StateFile $_ }
 
     Write-Host ""
@@ -645,7 +655,7 @@ function Invoke-Update([string]$PackName) {
     if (Test-Path $StateFile) { $localVer = (Get-Content $StateFile -Raw | ConvertFrom-Json).version }
     $remoteVer = $idx.packs.$PackName.version
     Write-Host ("[版本] 本地 {0} -> 远程 {1}" -f $localVer, $remoteVer)
-    if ($localVer -eq $remoteVer) { Write-Host "已是最新。"; exit 0 }
+    if ($localVer -eq $remoteVer) { Write-Host "已是最新。"; return }
 
     # 下载 zip + sha256 校验 + 解压替换（保留 _state/_backup）
     $zipRel = $idx.packs.$PackName.zip
@@ -914,6 +924,10 @@ function Invoke-Migrate([string]$PkgPath, [bool]$AllAgents, [bool]$DryRun) {
     $tasks = New-Object 'System.Collections.Generic.List[object]'
     foreach ($it in $chosen) {
         $src = Join-Path $homeDir $it.rel
+        # C1：路径穿越守卫（ASP-E-PATH-001）——manifest.rel 不可信，越出 $Home 即中止
+        $dstCheck = [System.IO.Path]::GetFullPath((Join-Path $Home $it.rel))
+        $homePrefix = [System.IO.Path]::GetFullPath($Home + [IO.Path]::DirectorySeparatorChar)
+        if (-not $dstCheck.StartsWith($homePrefix, [System.StringComparison]::OrdinalIgnoreCase)) { Write-Host ("[中止] ASP-E-PATH-001：迁移包内路径越界: {0}" -f $it.rel) -ForegroundColor Red; exit 1 }
         if ($it.type -eq "file") { $tasks.Add(@{ agent = $it.agent; src = $src; dst = (Join-Path $Home $it.rel); sha = $it.sha256 }) }
         else {
             foreach ($f in (Get-ChildItem $src -Recurse -File -Force)) {

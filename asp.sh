@@ -113,8 +113,11 @@ section = f"{begin}\n{content}\n{end}"
 if os.path.exists(target):
     raw = open(target, encoding="utf-8").read()
     if begin in raw:
+        if end not in rest:
+            sys.stderr.write("orphan-begin: target has BEGIN without END - not writing\n")
+            sys.exit(3)
         head, rest = raw.split(begin, 1)
-        _, tail = rest.split(end, 1) if end in rest else ("", "")
+        _, tail = rest.split(end, 1)
         open(target, "w", encoding="utf-8").write(head + section + tail)
         print("updated")
     else:
@@ -425,7 +428,7 @@ do_update() {
   rver=$(py -c "import json;print(json.load(open('/tmp/asp-index.json'))['packs']['$pack']['version'])")
   lver=$(py -c "import json,os;print(json.load(open('$STATE_FILE')).get('version','none')) if os.path.exists('$STATE_FILE') else print('none')")
   echo "[版本] 本地 $lver -> 远程 $rver"
-  [ "$lver" = "$rver" ] && { echo "已是最新。"; exit 0; }
+  [ "$lver" = "$rver" ] && { echo "已是最新。"; return 0; }
   local ziprel shaval url
   ziprel=$(py -c "import json;print(json.load(open('/tmp/asp-index.json'))['packs']['$pack']['zip'])")
   shaval=$(py -c "import json;print(json.load(open('/tmp/asp-index.json'))['packs']['$pack']['sha256'])")
@@ -739,6 +742,9 @@ chosen = default + [optional[i][0] for i in sorted(pick)]
 tasks = []
 for it in chosen:
     src = os.path.join(home_pkg, it["rel"])
+    _dst_chk = os.path.normpath(os.path.join(asp_home, it["rel"]))
+    if _dst_chk != asp_home and not _dst_chk.startswith(asp_home + os.sep):
+        print("[中止] ASP-E-PATH-001：迁移包内路径越界: " + it["rel"]); raise SystemExit(1)
     if it["type"] == "file":
         tasks.append((it["agent"], src, os.path.join(asp_home, it["rel"]), it.get("sha256")))
     else:
