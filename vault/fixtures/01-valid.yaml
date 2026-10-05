@@ -1,0 +1,27 @@
+schema_version: "1.0"
+id: rule_20261005_aaaa01
+revision: 3
+type: preference
+status: active
+scope:
+  scope_type: task_type
+  task_type: weekly_report
+trigger: 写周报、汇报材料时
+action: 结论放第一段，每段不超过 3 行
+counter: 先铺背景再给结论
+evidence:
+  - ref: log/2026-10/evt_0193
+    excerpt: 先说结论，背景放后面
+    source: command
+    agent_id: cursor
+    task_id: t_20261004_02
+confirmation:
+  mode: explicit_command
+  confirmed_at: 2026-10-04T10:21:00+08:00
+conflict_with: []
+supersedes: []
+merged_into: null
+created_at: 2026-10-04T10:20:12+08:00
+updated_at: 2026-10-06T09:02:41+08:00
+hits: 4
+last_hit_at: 2026-10-06T09:02:41+08:00

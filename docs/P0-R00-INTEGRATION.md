@@ -23,12 +23,10 @@
 6. **真机执行 `docs/qa/TEST-CASES-P0.md`**：TC-R00-01（Win10/PS5.1 嵌套复装）→ TC-R00-02（用户改动周更）→ TC-R00-03（mac 备份）→ TC-R00-06（矩阵）→ TC-R03-01（doctor 嵌套检测）
 7. 全过后合入 main、解除 README 宣传冻结（同步改 README:35/37 口径）、gitlink bump 走 SIAE 广播
 
-## R01 剩余工作（本批只交付 lint 构件）
+## R01（全链已交付，随本分支）
 
-export 流程接入 = 在 `asp export`（asp.ps1 L733-734 打包前 / asp.sh L562 tar 前）插入：
-`powershell -File scripts\credential-lint.ps1 <staging目录>` → 退出码非 0 即中止并清理半成品；
-同时把配置写入逻辑改为占位符替换（D18），lint 作为最后关卡（零命中才写临时文件）。
-占位符替换与 lint 接入由开发机在同一分支完成，验收 = TC-R01-01 + PRD N2。
+交付 = `scripts/export-sanitize.ps1`（占位符替换：JSON 键名规则 + TOML/INI/env 行级规则，8/8 夹具过）+ `scripts/apply-r01-patch.ps1/.sh`（接入 export 打包前：替换 → lint 零命中才打包，报警即中止清理暂存；manifest/说明文案改占位符口径）+ `scripts/credential-lint.ps1/.sh`（最后关卡）。
+xujinya 步骤：在 apply-r00-patch 之后执行 `apply-r01-patch.ps1` / `apply-r01-patch.sh`；验收 = TC-R01-01（注入测试 token 的 export，断言产物与日志零原值、lint 失败时不生成任何输出文件）。
 
 ## 设计要点（为什么这样做）
 

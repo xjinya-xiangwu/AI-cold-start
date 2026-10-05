@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/xjinya-xiangwu/AI-cold-start/vault/schema/experience-card.schema.json",
+  "title": "SIAE 经验卡 schema 1.0（PRD v0.2 §5.4 规格草案的机器可读镜像）",
+  "description": "唯一规格源是 Notion 开发级 PRD v0.2 §5.4；本 Schema 供提交器与夹具校验使用，冲突时以 PRD 为准。单卡一个 YAML 文件，UTF-8、LF；时间 ISO-8601 带时区；机器枚举英文。",
+  "type": "object",
+  "required": ["schema_version", "id", "revision", "type", "status", "scope", "action", "evidence", "created_at", "updated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "id": { "type": "string", "pattern": "^rule_[0-9]{8}_[a-f0-9]{4,8}$", "description": "全局唯一，创建后不变" },
+    "revision": { "type": "integer", "minimum": 1, "description": "每次提交 +1，乐观锁" },
+    "type": { "enum": ["correction", "preference", "prohibition", "fact", "case"] },
+    "status": { "enum": ["candidate", "pending", "active", "merged", "retired", "rejected"] },
+    "scope": {
+      "type": "object",
+      "required": ["scope_type"],
+      "additionalProperties": false,
+      "properties": {
+        "scope_type": { "enum": ["global", "task_type", "project", "skill"] },
+        "task_type": { "type": "string", "minLength": 1 },
+        "project_id": { "type": ["string", "null"], "minLength": 1 },
+        "skill_id": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "allOf": [
+        { "if": { "properties": { "scope_type": { "const": "task_type" } } }, "then": { "required": ["task_type"] } },
+        { "if": { "properties": { "scope_type": { "const": "project" } } }, "then": { "required": ["project_id"] } },
+        { "if": { "properties": { "scope_type": { "const": "skill" } } }, "then": { "required": ["skill_id"] } }
+      ]
+    },
+    "trigger": { "type": "string", "description": "自然语言，只供语义候选，不参与确定性路由" },
+    "action": { "type": "string", "minLength": 1 },
+    "counter": { "type": "string" },
+    "evidence": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["ref", "excerpt", "source", "agent_id", "task_id"],
+        "additionalProperties": false,
+        "properties": {
+          "ref": { "type": "string", "description": "引用事件，不复制整段会话" },
+          "excerpt": { "type": "string", "description": "最小脱敏摘录" },
+          "source": { "enum": ["command", "in_session", "post_session", "edit_diff", "import", "memory_import"] },
+          "agent_id": { "type": "string" },
+          "task_id": { "type": "string" }
+        }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["explicit_command", "review_confirm", "review_default", "user_edit", "legacy"] },
+        "confirmed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "conflict_with": { "type": "array", "items": { "type": "string" }, "description": "非空时只能停在 pending" },
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "merged_into": { "type": ["string", "null"], "description": "status=merged 时必填" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "hits": { "type": "integer", "minimum": 0, "description": "只计 observed / user_confirmed 证据的命中" },
+    "last_hit_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "merged" } } },
+      "then": { "required": ["merged_into"], "properties": { "merged_into": { "type": "string", "minLength": 1 } } } },
+    { "if": { "properties": { "conflict_with": { "type": "array", "minItems": 1 } } },
+      "then": { "properties": { "status": { "const": "pending" } } } }
+  ]
+}
