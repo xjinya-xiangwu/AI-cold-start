@@ -37,7 +37,7 @@
 ## 与同步底座（SYN PRD v0.3）的对接
 
 - **`asp sync` 命令组宿主在本仓库**（asp.ps1/asp.sh），底层实现 vendored 调 Agent-sync `broadcast/` 引擎（Agent-sync @3a75718，26 断言全绿，CLI：init/commit/digest|pull/ack/forget/devices/compress）。
-- 契约：IF-15（广播记录哈希链 bc_<dev6>_<seq6>）/ IF-16（确定性摘要，固定节序）/ IF-17（跨设备 age 加密）。阶段口径 D27：**同机 P1 / 跨设备 P2 / P0 只做设计与评审**——本批不含 P0 验收范围，真机验证批不因 sync 阻塞。
+- 契约：IF-15（广播记录哈希链 bc_<dev6>_<seq6>）/ IF-16（确定性摘要，固定节序）/ IF-17（跨设备传输，**默认通道=用户自备在线 git 仓库——settings 的 transport.git_remote 提供地址后启用，未提供则仅本机；10-07 已决**）。阶段口径 D27：**同机 P1 / 跨设备 P2 / P0 只做设计与评审**——本批不含 P0 验收范围，真机验证批不因 sync 阻塞。
 - export→vault 衔接不变（D14 字段级互斥）：广播只同步进展摘要，凭证与经验卡仍走各自通道。
 
 ## 已知边界（如实）
