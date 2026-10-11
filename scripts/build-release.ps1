@@ -49,9 +49,21 @@ Copy-Item (Join-Path $Root "adapters") (Join-Path $stage "adapters") -Recurse
 Copy-Item (Join-Path $Root "registry") (Join-Path $stage "registry") -Recurse
 # v0.10.0：剔除 registry/packs 内历史 zip——否则 zip 套 zip 逐版膨胀
 Remove-Item (Join-Path $stage "registry/packs") -Recurse -Force -ErrorAction SilentlyContinue
-Get-ChildItem $Root -File | Where-Object { $_.Name -match '^asp\.(ps1|sh)$|^setup\.|^update\.|^README\.md$' } | ForEach-Object {
+# v0.13.1（BUG-102）：内嵌 registry/index.json 版本与本包同步（此前 zip 内嵌的是上一版索引）；sha 只由远端索引承载，
+# 包内副本一律置空——自身 zip 的哈希在打包前不可能预知，留着必然是过期值
+$stageIdx = $idx | ConvertTo-Json -Depth 16 | ConvertFrom-Json
+$stageIdx.packs.$Pack.version = $tag
+foreach ($p in $stageIdx.packs.PSObject.Properties) { $p.Value.sha256 = "" }
+$stageIdx | ConvertTo-Json -Depth 16 | ForEach-Object {
+    [System.IO.File]::WriteAllText((Join-Path $stage "registry/index.json"), $_ + "`n", (New-Object System.Text.UTF8Encoding $false))
+}
+# v0.13.1（BUG-101/104）：迁移双击脚本与用户文档随包（此前 migrate-* 打包漏收、docs/UPDATES 缺失致文档引用断链；
+# docs/ 其余为内部文档，不随包分发）
+Get-ChildItem $Root -File | Where-Object { $_.Name -match '^asp\.(ps1|sh)$|^setup\.|^update\.|^migrate-|^README\.md$|^UPDATES\.md$' } | ForEach-Object {
     Copy-Item $_.FullName (Join-Path $stage $_.Name)
 }
+New-Item (Join-Path $stage "docs") -ItemType Directory -Force | Out-Null
+Copy-Item (Join-Path $Root "docs/MIGRATE.md") (Join-Path $stage "docs/MIGRATE.md")
 Write-Host ("[打包] 包含 packs: {0}" -f ($includePacks -join ", "))
 $zipName = "$Pack-$tag.zip"
 $zipPath = Join-Path $Dist $zipName

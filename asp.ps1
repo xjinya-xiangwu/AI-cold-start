@@ -25,6 +25,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# v0.13.1：控制台输出统一 UTF-8（修复重定向/CI 场景中文乱码；双击场景本就经 Unicode API 显示正常）
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
 $Root        = $PSScriptRoot
 $AdaptersDir = Join-Path $Root "adapters"
 $StateFile   = Join-Path $Root "_state.json"
@@ -558,14 +560,23 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
         }
     }
 
-    # 写状态（v0.5.0：packs 记录为数组，依赖链多次安装累加）
+    # 写状态（v0.5.0：packs 记录为数组，依赖链多次安装累加；v0.13.1：版本号取自内嵌 registry/index.json——此前首装恒写 "dev"，买家首次 update 必然触发一次冗余全量重装）
+    $relVer = "dev"
+    try {
+        $regIdxPath = Join-Path $Root "registry/index.json"
+        if (Test-Path $regIdxPath) {
+            $rv = (Get-Content $regIdxPath -Raw -Encoding UTF8 | ConvertFrom-Json).packs.$PackName.version
+            if ($rv -match '^v\d') { $relVer = $rv }
+        }
+    } catch {}
     if (Test-Path $StateFile) {
         $old = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json
         $packs = @($old.packs)
         if ($packs -notcontains $PackName) { $packs += $PackName }
-        $state = @{ packs = $packs; pack = $PackName; version = if ($old.version) { $old.version } else { "dev" }; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
+        $ver = if ($old.version -match '^v\d') { $old.version } else { $relVer }
+        $state = @{ packs = $packs; pack = $PackName; version = $ver; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
     } else {
-        $state = @{ packs = @($PackName); pack = $PackName; version = "dev"; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
+        $state = @{ packs = @($PackName); pack = $PackName; version = $relVer; installed_at = (Get-Date -Format s); agents = ($agents | ForEach-Object id) }
     }
     $state | ConvertTo-Json | ForEach-Object { Write-Utf8NoBom $StateFile $_ }
 

@@ -1,3 +1,4 @@
 @echo off
+chcp 65001 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" update
 pause

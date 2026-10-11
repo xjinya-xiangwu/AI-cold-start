@@ -1,7 +1,8 @@
 @echo off
+chcp 65001 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" ui
 echo.
-echo [CLI fallback] If the picker page did not open, use:
-echo   asp.ps1 install        (install packs)
-echo   asp.ps1 mcp install    (install MCP presets)
+echo [备选] 如选择页未打开，可直接用命令行安装：
+echo   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" install
+echo   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0asp.ps1" mcp install    （可选增强，零 key）
 pause
