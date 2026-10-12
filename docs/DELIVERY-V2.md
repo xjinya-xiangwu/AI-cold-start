@@ -90,3 +90,26 @@ curl -fsSL https://asp.<域名>/i/<orderToken> | sh
 | 离线/内网场景 | 绿色版 zip 私域兜底 |
 | token 泄露误伤（家庭多设备/公司内网多 IP） | 阈值宽松（如 >5 IP/日）+ 断供前先告警提示，不误杀 |
 | 电商平台文本发货 | 闲鱼/淘宝自动发货均支持文本 ✅ |
+
+---
+
+## 实施记录 v1.0（2026-10-12，纯静态 token 方案）
+
+> 按最小可行原则（karpathy：最简单能跑通的方案），v2 的服务端查表+签名用**纯 OSS 静态文件**等价实现，零计算、零新账号组件。
+
+**实现形态**：订单购买后，维护者运行 `scripts/gen-order-tokens.ps1`——按 `registry/orders.csv`（token,sku,note；不入库）为每单生成 `i/<token>.ps1` / `i/<token>.sh` 上传至 OSS。买家命令 `irm <oss>/i/<token>.ps1 | iex` 拉取的 bootstrap 内嵌**本周 presigned URL**（7 天 TTL）+ 对应包的 sha256；下载→校验→解压→调 asp 引擎安装→在 `%USERPROFILE%\asp-coldstart\` 写 `update-token.bat`（内容=重跑同一条 token 命令）。
+
+**与原设计的映射**：
+
+| 原设计 | 纯静态实现 |
+|---|---|
+| 服务端订单表 + token 解析 | token 文件路径本身=凭证（不可猜 URL）；`i/<token>.*` 存在即有效 |
+| 每周按订单批量签 URL | 每周重跑 gen-order-tokens.ps1 覆写全部 token 文件（幂等） |
+| 转卖=转卖 token，可断供 | `-Revoke <token>` 删除 i/<token>.* → 买家命令 404（已实测） |
+| 多 IP/高频告警 | 暂以 OSS 访问日志人工核查；自动化分析后置 |
+
+**买家命令**（Win）：`irm https://asp-registry-xjinya.oss-cn-hangzhou.aliyuncs.com/i/<token>.ps1 | iex`；Mac/Linux：`curl -fsSL .../i/<token>.sh | bash`。重跑=更新（bootstrap 每周重签后内容随新版本走）。
+
+**验收记录（2026-10-12，kurtx 沙箱）**：①presigned URL 实际下载+sha256 校验通过（E2E 内含）；②base token 全新沙箱 `irm|iex` → 25 skills、托管块=1、原文保留、update-token.bat 含本 token；③幂等重跑 exit 0；④ai-pm token → 37 skills（含 prd-drafting）；⑤`-Revoke` 后 token URL 404。已知边界：.sh 通道已生成未在真机 E2E（Windows 开发机）；SKU 只有 base/ai-pm 两档（后续方向包在 orders.csv 的 sku 列扩展）。
+
+**运营 SOP**：新订单 → orders.csv 加行 → `gen-order-tokens.ps1 -Only <token>`；每周发版 → build-release 后重跑全量签发（presign 指向新版本）；退款/转卖 → `-Revoke <token>`。

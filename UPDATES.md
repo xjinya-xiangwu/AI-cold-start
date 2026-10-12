@@ -1,5 +1,14 @@
 # UPDATES
 
+## 交付设施（2026-10-12）— D13 v2 订单通道 v1.0 上线（纯静态 token 方案）
+
+包内容不变（仍为 v0.13.1 双包）；本条记录交付基础设施：
+
+- **`scripts/gen-order-tokens.ps1`**：按订单表签发/重签/撤销订单安装通道——买家命令 `irm <oss>/i/<token>.ps1 | iex`（bootstrap 内嵌本周 presigned URL 7 天 TTL + sha256，下载校验后调 asp 引擎安装，并写 `%USERPROFILE%\asp-coldstart\update-token.bat` 供以后一键更新）；每周重跑=周签；`-Revoke`=断供（已实测 404）
+- **双更新源实联**（同日早前）：registry mirrors[1] = 阿里云 OSS 杭州 `asp-registry-xjinya`，Pages 抖动时 `asp update` 自动切换（failover 已实测）
+- **验收**：base/ai-pm 双 SKU 沙箱 E2E（25/37 技能、幂等、隔离、撤销 404）全绿；测试 token 已清理
+- 订单表 `registry/orders.csv` 含 token 永不入库（.gitignore）；示例见 `registry/orders.example.csv`
+
 ## v0.13.1（2026-10-11）— 买家旅程 QA 修复批（5 缺陷清零）
 
 全链路买家旅程验收（下载→安装→更新→迁移→零 key 审计）发现 5 个打包/体验缺陷，本版全部修复，35 条回归断言全绿（assert_v0130.ps1，含 5 条由红转绿）。

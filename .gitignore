@@ -4,4 +4,7 @@ _state.json
 !registry/packs/*.zip
 .mimosa/
 collector/state/
-asp-env-*.tar.gz
+
+# D13 v2 订单表（含 token，永不入库）
+registry/orders.csv
+dist/

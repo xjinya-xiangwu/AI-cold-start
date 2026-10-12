@@ -1,0 +1,2 @@
+token,sku,note
+EXAMPLE-REPLACE-ME,base,示例行——含 EXAMPLE 的行不会被签发；实际订单表 registry/orders.csv 不入库（见 .gitignore）
