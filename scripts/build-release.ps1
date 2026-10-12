@@ -89,4 +89,10 @@ $idx | ConvertTo-Json -Depth 16 | ForEach-Object {
 Write-Host "[完成] dist/$zipName"
 Write-Host "       sha256: $sha"
 Write-Host "       index.json 已更新。发布 = 上传 zip 与 index 到 OSS 主源 + GitHub Pages 备源"
+# D13 v2：发版同步 OSS 备源（凭据在环境变量时自动执行；否则提示手动）
+if ($env:ASP_OSS_AK -and $env:ASP_OSS_SK) {
+    & (Join-Path $PSScriptRoot "sync-registry-oss.ps1")
+} else {
+    Write-Host "[提示] 未配置 ASP_OSS_AK/SK，OSS 备源未同步——手动运行 scripts/sync-registry-oss.ps1" -ForegroundColor Yellow
+}
 Write-Host "[待人工] UPDATES.md 写变更说明 -> 更新群推送"

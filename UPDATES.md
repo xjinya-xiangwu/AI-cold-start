@@ -7,6 +7,8 @@
 - **`scripts/gen-order-tokens.ps1`**：按订单表签发/重签/撤销订单安装通道——买家命令 `irm <oss>/i/<token>.ps1 | iex`（bootstrap 内嵌本周 presigned URL 7 天 TTL + sha256，下载校验后调 asp 引擎安装，并写 `%USERPROFILE%\asp-coldstart\update-token.bat` 供以后一键更新）；每周重跑=周签；`-Revoke`=断供（已实测 404）
 - **双更新源实联**（同日早前）：registry mirrors[1] = 阿里云 OSS 杭州 `asp-registry-xjinya`，Pages 抖动时 `asp update` 自动切换（failover 已实测）
 - **验收**：base/ai-pm 双 SKU 沙箱 E2E（25/37 技能、幂等、隔离、撤销 404）全绿；测试 token 已清理
+- **L2 更新触达（默认关）**：bootstrap 生成 enable/disable-weekly-autoupdate.bat（PowerShell Register-ScheduledTask，每周日 10:00 自动重跑 token 命令）；沙箱真机验收注册/删除
+- **发版联动**：build-release 末尾自动同步 OSS 备源（scripts/sync-registry-oss.ps1，21 文件实测）；签发自带回读自检
 - 订单表 `registry/orders.csv` 含 token 永不入库（.gitignore）；示例见 `registry/orders.example.csv`
 
 ## v0.13.1（2026-10-11）— 买家旅程 QA 修复批（5 缺陷清零）

@@ -113,3 +113,9 @@ curl -fsSL https://asp.<域名>/i/<orderToken> | sh
 **验收记录（2026-10-12，kurtx 沙箱）**：①presigned URL 实际下载+sha256 校验通过（E2E 内含）；②base token 全新沙箱 `irm|iex` → 25 skills、托管块=1、原文保留、update-token.bat 含本 token；③幂等重跑 exit 0；④ai-pm token → 37 skills（含 prd-drafting）；⑤`-Revoke` 后 token URL 404。已知边界：.sh 通道已生成未在真机 E2E（Windows 开发机）；SKU 只有 base/ai-pm 两档（后续方向包在 orders.csv 的 sku 列扩展）。
 
 **运营 SOP**：新订单 → orders.csv 加行 → `gen-order-tokens.ps1 -Only <token>`；每周发版 → build-release 后重跑全量签发（presign 指向新版本）；退款/转卖 → `-Revoke <token>`。
+### 追加（2026-10-12 深夜，同批次第二段）
+
+- **更新触达 L2 档落地（默认关）**：bootstrap 在 `%USERPROFILE%sp-coldstart\` 额外生成 `enable-weekly-autoupdate.bat` / `disable-weekly-autoupdate.bat`——以 PowerShell `Register-ScheduledTask` 实现每周日 10:00 自动重跑 token 命令（任务名 asp-coldstart-weekly）。实现选型说明：开发机（公司域控机）schtasks.exe 被策略禁用（"拒绝访问"）而任务计划服务可用，`Register-ScheduledTask` 双端验证通过且免 /TR 嵌套引号；bat 内容以 base64 注入 bootstrap 免多层转义。验收：沙箱 E2E 真注册（动作指向买家 update-token.bat）→ disable 干净删除。
+- **签发自检**：每单 PUT 后回读 token URL，断言 200 + presign 内嵌——把历史上 byte[] 被 ToString 的上传损坏类回归永久钉死。
+- **发版联动**：新增 `scripts/sync-registry-oss.ps1`（registry 全量 → OSS，元数据 no-cache / zip immutable），build-release.ps1 末尾自动调用（有凭据自动跑，无凭据黄字提示手动）。
+
