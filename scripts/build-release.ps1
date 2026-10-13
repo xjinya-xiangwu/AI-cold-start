@@ -1,12 +1,13 @@
 ﻿# =====================================================================
-# build-release.ps1 - 发版打包脚本（周更流水线的第④步）
+# build-release.ps1 - 月度内容版本构建（每三天换下载链接由 fulfillment 处理）
 # 用法: .\scripts\build-release.ps1 -Pack ai-pm [-Version 1.1.0]
 # 动作: 校验 BOM -> 打包 zip(含安装器+packs+adapters+registry) -> 计算 sha256
 #       -> 更新 registry/index.json 的版本与哈希 -> 输出到 dist/
 # =====================================================================
 param(
     [Parameter(Mandatory=$true)][string]$Pack,
-    [string]$Version = ""
+    [string]$Version = "",
+    [switch]$PublishOss
 )
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot/..").Path
@@ -29,6 +30,8 @@ if (-not $Version) {
 }
 $tag = "v$Version"
 Write-Host "[发版] $Pack $tag"
+$zipName = "$Pack-$tag.zip"
+if ((Test-Path (Join-Path $Dist $zipName)) -or (Test-Path (Join-Path $Root "registry/packs/$zipName"))) { throw "版本对象已存在，禁止覆盖；请使用新的版本号。" }
 
 # 3) 打包（v0.5.0 分层：按包过滤 packs——base zip 只含 base；专业包 zip 含 base+该包，依赖安装需要）
 $stage = Join-Path $env:TEMP ("asp-rel-" + [guid]::NewGuid().ToString("N"))
@@ -46,14 +49,19 @@ foreach ($pk in $includePacks) {
     Copy-Item (Join-Path $Root "packs/$pk") (Join-Path "$stage/packs" $pk) -Recurse
 }
 Copy-Item (Join-Path $Root "adapters") (Join-Path $stage "adapters") -Recurse
-Copy-Item (Join-Path $Root "registry") (Join-Path $stage "registry") -Recurse
+New-Item (Join-Path $stage "scripts") -ItemType Directory -Force | Out-Null
+Copy-Item (Join-Path $Root "scripts/merge-skills.py") (Join-Path $stage "scripts/merge-skills.py")
+Copy-Item (Join-Path $Root "scripts/legacy-skill-hashes.json") (Join-Path $stage "scripts/legacy-skill-hashes.json")
+New-Item (Join-Path $stage "registry") -ItemType Directory -Force | Out-Null
+Copy-Item (Join-Path $Root "registry/index.json") (Join-Path $stage "registry/index.json")
 # v0.10.0：剔除 registry/packs 内历史 zip——否则 zip 套 zip 逐版膨胀
 Remove-Item (Join-Path $stage "registry/packs") -Recurse -Force -ErrorAction SilentlyContinue
 # v0.13.1（BUG-102）：内嵌 registry/index.json 版本与本包同步（此前 zip 内嵌的是上一版索引）；sha 只由远端索引承载，
 # 包内副本一律置空——自身 zip 的哈希在打包前不可能预知，留着必然是过期值
 $stageIdx = $idx | ConvertTo-Json -Depth 16 | ConvertFrom-Json
 $stageIdx.packs.$Pack.version = $tag
-foreach ($p in $stageIdx.packs.PSObject.Properties) { $p.Value.sha256 = "" }
+foreach ($pk in $includePacks) { $stageIdx.packs.$pk.version = $tag; $stageIdx.packs.$pk.zip = "packs/$pk-$tag.zip" }
+foreach ($prop in $stageIdx.packs.PSObject.Properties) { $prop.Value.sha256 = "" }
 $stageIdx | ConvertTo-Json -Depth 16 | ForEach-Object {
     [System.IO.File]::WriteAllText((Join-Path $stage "registry/index.json"), $_ + "`n", (New-Object System.Text.UTF8Encoding $false))
 }
@@ -69,7 +77,7 @@ Copy-Item (Join-Path $Root "docs/manual/使用手册.docx") (Join-Path $stage "�
 Write-Host ("[打包] 包含 packs: {0}" -f ($includePacks -join ", "))
 $zipName = "$Pack-$tag.zip"
 $zipPath = Join-Path $Dist $zipName
-if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+if (Test-Path $zipPath) { throw "发行版本不可覆盖" }
 Compress-Archive -Path "$stage/*" -DestinationPath $zipPath -Force
 Remove-Item $stage -Recurse -Force
 
@@ -92,9 +100,9 @@ Write-Host "[完成] dist/$zipName"
 Write-Host "       sha256: $sha"
 Write-Host "       index.json 已更新。发布 = 上传 zip 与 index 到 OSS 主源 + GitHub Pages 备源"
 # D13 v2：发版同步 OSS 备源（凭据在环境变量时自动执行；否则提示手动）
-if ($env:ASP_OSS_AK -and $env:ASP_OSS_SK) {
+if ($PublishOss -and $env:ASP_OSS_AK -and $env:ASP_OSS_SK) {
     & (Join-Path $PSScriptRoot "sync-registry-oss.ps1")
 } else {
-    Write-Host "[提示] 未配置 ASP_OSS_AK/SK，OSS 备源未同步——手动运行 scripts/sync-registry-oss.ps1" -ForegroundColor Yellow
+    Write-Host "[提示] 本次仅本地构建；确认后用 -PublishOss 或独立同步命令发布 OSS" -ForegroundColor Yellow
 }
 Write-Host "[待人工] UPDATES.md 写变更说明 -> 更新群推送"

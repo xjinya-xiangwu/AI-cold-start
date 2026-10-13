@@ -8,3 +8,15 @@ collector/state/
 # D13 v2 订单表（含 token，永不入库）
 registry/orders.csv
 dist/
+
+_skill-state/
+test-output/
+ops-private/
+*.delivery.json
+
+__pycache__/
+*.pyc
+
+# Local pre-release builds, never distributed
+registry/packs/*-v0.14.0.zip
+registry/packs/*-v0.14.1.zip

@@ -1,3 +1,4 @@
+# LEGACY: new flow uses private-fulfillment.workflow.yml. Private repo only.
 # =====================================================================
 # issue-order.yml - D13 v2 云端签发（不依赖本机）：电商收到订单后，
 #   GitHub 网页/gh CLI 触发本 workflow → 算法生成 token → 上传 OSS
@@ -37,5 +38,8 @@ jobs:
         env:
           ASP_OSS_AK: ${{ secrets.ASP_OSS_AK }}
           ASP_OSS_SK: ${{ secrets.ASP_OSS_SK }}
+          ORDER_SKU: ${{ inputs.sku }}
+          ORDER_REF: ${{ inputs.order_ref }}
+          ORDER_NOTE: ${{ inputs.note }}
         run: |
-          ./scripts/gen-order-tokens.ps1 -Sku "${{ inputs.sku }}" -OrderRef "${{ inputs.order_ref }}" -Note "${{ inputs.note }}"
+          ./scripts/gen-order-tokens.ps1 -Sku $env:ORDER_SKU -OrderRef $env:ORDER_REF -Note $env:ORDER_NOTE

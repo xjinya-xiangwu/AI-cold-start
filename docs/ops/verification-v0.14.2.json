@@ -1,0 +1,37 @@
+{
+  "version": "v0.14.2",
+  "installer": {
+    "passed": 14,
+    "total": 14
+  },
+  "orderTests": {
+    "passed": 12,
+    "total": 12
+  },
+  "orderInstall": {
+    "tripleInstall": true,
+    "stableState": true,
+    "originalRolePreserved": true,
+    "tamperRejected": true
+  },
+  "uiHttp": {
+    "selectedOnly": true,
+    "cursorRoleNonempty": true
+  },
+  "merchantBridge": {
+    "signed": true,
+    "unsignedRejected": true,
+    "idempotent": true,
+    "refund": true,
+    "realPlatform": false
+  },
+  "unix": {
+    "componentTest": true,
+    "shellSyntax": true,
+    "nativeMachine": false
+  },
+  "productionOss": false,
+  "platformOAuth": false,
+  "workflowActivated": false,
+  "sourceBase": "a26954562b1c462182f731bfe2d35412584f7410"
+}

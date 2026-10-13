@@ -1,0 +1,15 @@
+*.sh text eol=lf
+*.command text eol=lf
+*.py text eol=lf
+*.ps1 -text
+*.bat -text
+*.zip binary
+*.docx binary
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.ps1 whitespace=cr-at-eol
+*.bat whitespace=cr-at-eol
+*.html text eol=lf
+docs/history/** -whitespace
+**/licenses/*.txt -whitespace

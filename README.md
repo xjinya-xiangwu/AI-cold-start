@@ -1,8 +1,12 @@
+# 当前交付 v0.14.2
+
+订单专属 ZIP、双击/CLI/Agent prompt 安装、每3天刷新下载链接、每月更新内容。完整买家流程见 [使用说明](docs/USER-README.md)，卖家发货/三平台接入见 [运行手册](docs/ops/FULFILLMENT.md)。**三平台支付与自动发送尚未接通；公开仓库不是付费墙。**
+
 # 智能体冷启动包 · Agent Cold-start Pack
 
-> 把一套成型的「专家工作方法」——**25 个通用 skills（基础层）+ 12 个 PM 专业 skills（方向加购）** + 角色工作流 AGENTS.md + 可选 MCP 增强 + 42 条即用指令——10 分钟一键装进你电脑上的 10 个主流 AI agent，并每周更新。**v0.6.0 起支持一键环境迁移（export/migrate，零依赖，10 个 agent 含 Trae/Qoder/WorkBuddy）**。
+> 把一套成型的「专家工作方法」——**25 个通用 skills（基础层）+ 12 个 PM 专业 skills（方向加购）** + 角色工作流 AGENTS.md + 可选 MCP 增强 + 42 条即用指令——10 分钟一键装进你电脑上的 10 个主流 AI agent，并每月内容更新。**v0.6.0 起支持一键环境迁移（export/migrate，零依赖，10 个 agent 含 Trae/Qoder/WorkBuddy）**。
 
-![version](https://img.shields.io/badge/v0.13.1-2563EB) ![base](https://img.shields.io/badge/%E5%9F%BA%E7%A1%80%E5%8C%85--25%20skills%20%C2%A520-059669) ![addon](https://img.shields.io/badge/%E6%96%B9%E5%90%91%E5%8A%A0%E8%B4%AD--%2B%C2%A510%2F%E6%96%B9%E5%90%91-8B5CF6) ![agents](https://img.shields.io/badge/agents-10-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
+![version](https://img.shields.io/badge/v0.14.2-2563EB) ![base](https://img.shields.io/badge/%E5%9F%BA%E7%A1%80%E5%8C%85--25%20skills%20%C2%A520-059669) ![addon](https://img.shields.io/badge/%E6%96%B9%E5%90%91%E5%8A%A0%E8%B4%AD--%2B%C2%A510%2F%E6%96%B9%E5%90%91-8B5CF6) ![agents](https://img.shields.io/badge/agents-10-F59E0B) ![key](https://img.shields.io/badge/API%20key-%E9%9B%B6%E4%B8%AA%E6%89%8D%E8%83%BD%E7%94%A8-10B981)
 
 **问题不在 AI 不会聊天，在于它没有方法。** 同样一句「帮我写个 PRD」，裸模型给一堆正确的废话；装包后先问你 4 个关键问题，再按 12 章专业模板出稿——AI 特有章节（能力边界 / 异常流 / 评测验收 / 人机协同）一个不漏。
 
@@ -12,7 +16,7 @@
 
 | 商品 | 价格 | 内容 |
 |---|---|---|
-| **基础包 `base`（必选底座）** | **¥20 买断** | 25 个跨职业通用 skills（想清楚 5 / 排得起 5 / 兜得住 7 / 算得清 3 / 用得爽 5）+ 11 条通用指令 + 安装器 + 3 个月周更；零 MCP 默认（增强由 skills 承载，可选一键加） |
+| **基础包 `base`（必选底座）** | **¥20 买断** | 25 个跨职业通用 skills（想清楚 5 / 排得起 5 / 兜得住 7 / 算得清 3 / 用得爽 5）+ 11 条通用指令 + 安装器 + 3 个月每月内容更新；零 MCP 默认（增强由 skills 承载，可选一键加） |
 | **方向加购 `ai-pm`（可选）** | **+¥10 / 方向** | 当前现货：**AI 产品经理方向**——12 个 PM 专属 skills（洞察 4 / 设计 4 / AI 专项 2 / 战略 2）+ 31 条 PM 指令 + 九环 PM 工作流；含基础包合计 ¥30 |
 | 规划中方向 | — | AI 开发者方向、AI 内容创作方向（各 +¥10，复用 base，上架日期不预先承诺） |
 
@@ -32,12 +36,12 @@
 - 🧩 **一键安装**：Windows 双击 `setup.bat`，全程中文提示
 - 🩺 **MCP 体检（v0.7.0）**：`asp doctor` 对已部署的每条 MCP 做**真实 initialize 握手**，PASS/WARN/FAIL/SKIP 健康表——「配置写了」不算数，「实测握上手」才算
 - 🔑 **零 key**：默认功能全部无需 API key；key 类增强服务只提供注册引导，**安装器不收集任何 key**
-- ➕ **只增不覆盖**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
+- ➕ **逐文件合并，用户改写冲突保留并备份**：不碰你已有的配置与 skills；所有改动先自动备份到 `_backup/`，可完整回滚
 - 🔁 **幂等**：重复安装不产生重复配置（managed-section 托管块机制）
-- 📡 **周更**：`update.bat` 一键更新，双更新源 failover + sha256 校验
+- 📡 **每月内容更新**：`update.bat` 一键更新，双更新源 failover + sha256 校验
 - 🔁 **环境迁移（v0.6.0）**：`asp export -Repo <私有仓库>` 把全部 agent 环境（skills/AGENTS.md/MCP/记忆）推到你的 **GitHub 私有仓库**；新机器 `git clone` 后 `asp migrate env` 一键还原——自动检测客户端可选导入、单项 ≤20MB 默认同步超大项可勾选、导入结果哈希验证。零 U 盘零网盘；详见 [docs/MIGRATE.md](docs/MIGRATE.md)
 - 📦 **离线快照**：skills / AGENTS.md / prompts 全部随包本地化；v0.8.0 起默认零 MCP——文档查新等增强能力由 skills 指挥 agent 内置 web 工具完成，无额外运行时与端点依赖
-- 🔌 **一键常用 MCP（v0.10.0+，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强，三个官方预设——**essentials**（context7 / 记忆 / 深度思考，零 key）、**work-tools 办公工具集**（Figma / Notion / Jira·Confluence / Linear / Slack / Asana / MS Learn 官方 MCP）、**dev-tools 开发者集**（Microsoft Playwright / MCP 官方 filesystem / Supabase）；全部官方出品零自建，OAuth 在 agent 内登录不存 key，无 npx 环境自动降级，只增不覆盖
+- 🔌 **一键常用 MCP（v0.10.0+，可选）**：`asp mcp install` 一条命令给全部 agent 装常用增强，三个官方预设——**essentials**（context7 / 记忆 / 深度思考，零 key）、**work-tools 办公工具集**（Figma / Notion / Jira·Confluence / Linear / Slack / Asana / MS Learn 官方 MCP）、**dev-tools 开发者集**（Microsoft Playwright / MCP 官方 filesystem / Supabase）；全部官方出品零自建，OAuth 在 agent 内登录不存 key，无 npx 环境自动降级，逐文件合并，用户改写冲突保留并备份
 - 🖥️ **两步选择式安装 UI（v0.12.0）**：双击 `setup.bat` 或 `asp ui` 打开本地选择页——**一步选完**部署目标（探测到的 agent）× 内容包 × MCP 预设，**第二步一键执行**：实时进度 → 安装报告（doctor 验证 / 首用指令 / 更新方式）。v0.13.0 升级为**已购清单式**：技能逐项勾选（带简介）、MCP 三档并入清单、支持子集安装。无浏览器环境可用等价命令行（install / mcp install）
 
 ## 快速开始
@@ -151,7 +155,7 @@ context7 文档检索（远程端点免 node）+ 跨会话记忆 + 深度思考�
 powershell -ExecutionPolicy Bypass -File asp.ps1 update
 ```
 
-版本对比 → 下载 → **sha256 校验** → 增量部署（保留你的 `_state` / `_backup`）。每次发版的变更说明见 [UPDATES.md](UPDATES.md)。**GitHub Pages 周更主源已上线（v0.13.0），阿里云 OSS 备源待开通**。
+版本对比 → 下载 → **sha256 校验** → 增量部署（保留你的 `_state` / `_backup`）。每次发版的变更说明见 [UPDATES.md](UPDATES.md)。**旧公开双源仅保留兼容；新订单采用私有 OSS ZIP，下载链接每72小时刷新，内容每月更新。生产订单与云端配置仍待验收**。
 
 ## 目录结构
 
@@ -172,8 +176,8 @@ AI-cold-start/
 │       ├── AGENTS.md       # 两层版工作流与知识基准
 │       ├── COVERAGE.md     # 53 项任务覆盖映射
 │       └── THIRD-PARTY-NOTICES.md
-├── registry/index.json     # 周更源索引（两包版本/哈希/mirrors，Pages 主源已上线）
-├── collector/              # 周更抓源脚本 + 候选/调研报告
+├── registry/index.json     # 每月内容更新源索引（两包版本/哈希/mirrors，Pages 主源已上线）
+├── collector/              # 每月内容更新抓源脚本 + 候选/调研报告
 ├── scripts/                # build-release（按包过滤打包）/ make-lite
 ├── docs/                   # 开发/托管/商品文案
 └── UPDATES.md              # 更新日志
@@ -195,7 +199,7 @@ AI-cold-start/
 
 ## 路线图
 
-- [ ] **交付形态 v2**：电商交付一段安装代码（`irm …/i/<orderToken> | iex`）+ 本地 UI 选择式安装（环境×内容包三步流）+ 按订单周签 URL（7 天 TTL）；更新触达三档（L2 勾选式自动更新默认关 / L1 群通知 / L0 重跑兜底）——设计已冻结，见 [docs/DELIVERY-V2.md](docs/DELIVERY-V2.md) 与 [docs/ANTI-RESALE.md](docs/ANTI-RESALE.md)（EULA"转售即分销"30% 返佣）
+- [x] **旧交付形态 v2（已由新ZIP方案替代，非当前承诺）**：电商交付一段安装代码（`irm …/i/<orderToken> | iex`）+ 本地 UI 选择式安装（环境×内容包三步流）+ 按订单周签 URL（7 天 TTL）；更新触达三档（L2 勾选式自动更新默认关 / L1 群通知 / L0 重跑兜底）——设计已冻结，见 [docs/DELIVERY-V2.md](docs/DELIVERY-V2.md) 与 [docs/ANTI-RESALE.md](docs/ANTI-RESALE.md)（EULA"转售即分销"30% 返佣）
 - [ ] **安装体验 v2（ONBOARDING V2）**：W1 市场共存双向桥 · W2 凭据钱包+doctor 流量灯体检 · W3 首装对照（装前基线→装后同题→before/after 报告）· W4 零决策安装+弱模型 CI 矩阵——设计见 [docs/ONBOARDING-V2.md](docs/ONBOARDING-V2.md)；**W1 阶段1 已落地**：市场上架准备（渠道事实源 [registry/marketplace-map.json](registry/marketplace-map.json) + 素材生成器 [scripts/gen-marketplace-kit.py](scripts/gen-marketplace-kit.py) + 上架指南 [docs/MARKETPLACE-LISTING.md](docs/MARKETPLACE-LISTING.md)；Claude 官方插件市场 kit-ready / skills.sh 已 live / Qoder format-ready）；**W2 的 doctor v1（MCP 流量灯体检）已于 v0.7.0 提前落地**
 - [ ] AI 开发者方向 / AI 内容创作方向（各 +¥10 加购，复用 base，规划中）
 - [ ] P1 skills：问卷设计 / UAT 验收 / 用户画像 / 增长实验 / 演示材料 / 竞品监控 / 定价设计

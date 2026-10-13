@@ -35,7 +35,10 @@ function Invoke-OssPut([string]$Key, [string]$LocalPath, [string]$Ctype = "") {
 
 $regDir = Join-Path $Root "registry"
 $n = 0
-Get-ChildItem $regDir -Recurse -File | ForEach-Object {
+Get-ChildItem $regDir -Recurse -File | Where-Object {
+    $relative=$_.FullName.Substring($regDir.Length + 1).Replace('\','/')
+    $relative -match '^(index\.json|marketplace-map\.json|mcp-candidates\.json|packs/[^/]+\.zip)$'
+} | ForEach-Object {
     $key = $_.FullName.Substring($regDir.Length + 1).Replace('\', '/')
     # v0.13.2：显式 Content-Type——PS5.1 客户端对无 charset 响应拿 Byte[]，ConvertFrom-Json 静默解析为空
     $ctype = switch -Regex ($_.Extension) {

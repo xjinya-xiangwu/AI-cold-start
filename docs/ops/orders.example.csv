@@ -1,0 +1,4 @@
+platform,order_id,sku,payment_status
+xiaohongshu,EXAMPLE-DO-NOT-SHIP,base,unpaid
+taobao,EXAMPLE-DO-NOT-SHIP,ai-pm,unpaid
+pinduoduo,EXAMPLE-DO-NOT-SHIP,base,unpaid

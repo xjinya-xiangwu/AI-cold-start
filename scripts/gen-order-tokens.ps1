@@ -12,7 +12,7 @@ param(
     [string]$OrdersCsv = "",
     [string]$Bucket = "asp-registry-xjinya",
     [string]$Endpoint = "oss-cn-hangzhou.aliyuncs.com",
-    [int]$TtlDays = 7,
+    [int]$TtlDays = 4,
     [string]$Only = "",
     [string]$Revoke = "",
     # 单订单模式（云端自动化）：传 -Sku 即走，不读 orders.csv；算法生成 token 并写订单日志到 OSS 私有前缀
@@ -31,7 +31,7 @@ $AK = $env:ASP_OSS_AK; $SK = $env:ASP_OSS_SK
 $TokenBaseUrl = "https://{0}.{1}/i" -f $Bucket, $Endpoint
 # L2 更新触达（默认关）：enable/disable 每周自动更新静态 bat（PowerShell Register-ScheduledTask 实现，
 # 规避 schtasks /TR 嵌套引号与本机策略差异；bat 为 UTF-8+chcp65001，以 base64 注入 bootstrap 免多层转义）
-$script:EnB64 = "QGVjaG8gb2ZmDQpjaGNwIDY1MDAxID5udWwNCnBvd2Vyc2hlbGwgLU5vUHJvZmlsZSAtRXhlY3V0aW9uUG9saWN5IEJ5cGFzcyAtQ29tbWFuZCAiJGEgPSBOZXctU2NoZWR1bGVkVGFza0FjdGlvbiAtRXhlY3V0ZSAnJVVTRVJQUk9GSUxFJVxhc3AtY29sZHN0YXJ0XHVwZGF0ZS10b2tlbi5iYXQnOyAkdCA9IE5ldy1TY2hlZHVsZWRUYXNrVHJpZ2dlciAtV2Vla2x5IC1EYXlzT2ZXZWVrIFN1bmRheSAtQXQgMTA6MDA7IFJlZ2lzdGVyLVNjaGVkdWxlZFRhc2sgLVRhc2tOYW1lICdhc3AtY29sZHN0YXJ0LXdlZWtseScgLUFjdGlvbiAkYSAtVHJpZ2dlciAkdCAtRm9yY2UgfCBPdXQtTnVsbDsgaWYgKCQ/KSB7IFdyaXRlLUhvc3QgJ+W3suW8gOWQr+avj+WRqOiHquWKqOabtOaWsDog5q+P5ZGo5pelIDEwOjAwJyB9IGVsc2UgeyBXcml0ZS1Ib3N0ICfms6jlhozlpLHotKUnIH0iDQpwYXVzZQ=="
+$script:EnB64 = "QGVjaG8gb2ZmDQpjaGNwIDY1MDAxID5udWwNCmVjaG8g5pys54mI5pys5pS55Li65Y2W5a625q+PM+WkqeWPkemAgeS4i+i9vemTvuaOpeOAgeavj+aciOabtOaWsOWGheWuue+8m+S4jeaWsOW7uuacrOacuuWRqOabtOS7u+WKoeOAgg0KcGF1c2UNCg=="
 $script:DisB64 = "QGVjaG8gb2ZmDQpjaGNwIDY1MDAxID5udWwNCnBvd2Vyc2hlbGwgLU5vUHJvZmlsZSAtRXhlY3V0aW9uUG9saWN5IEJ5cGFzcyAtQ29tbWFuZCAiVW5yZWdpc3Rlci1TY2hlZHVsZWRUYXNrIC1UYXNrTmFtZSAnYXNwLWNvbGRzdGFydC13ZWVrbHknIC1Db25maXJtOiRmYWxzZSAtRXJyb3JBY3Rpb24gU2lsZW50bHlDb250aW51ZTsgV3JpdGUtSG9zdCAn5bey5YWz6Zet5q+P5ZGo6Ieq5Yqo5pu05pawJyINCnBhdXNl"
 
 # ---------- OSS V1 签名（.NET HMAC，零外部依赖） ----------
@@ -85,22 +85,30 @@ try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding(`$false) }
 `$packs = @(
 $packCode
 )
-`$dir = Join-Path `$env:TEMP ('asp-ord-$Token')
+`$home2 = Join-Path `$env:USERPROFILE 'asp-coldstart'
+`$dir = Join-Path `$home2 'downloads'
 New-Item -ItemType Directory -Force -Path `$dir | Out-Null
 foreach (`$p in `$packs) {
-    Write-Host ('[下载] ' + `$p.name + ' ' + `$p.ver + ' ...')
+    Write-Host ('[下载] ' + `$p.name + ' ' + `$p.ver)
     `$zip = Join-Path `$dir (`$p.name + '-' + `$p.ver + '.zip')
     Invoke-WebRequest -Uri `$p.url -OutFile `$zip -UseBasicParsing
     if ((Get-FileHash `$zip -Algorithm SHA256).Hash.ToLower() -ne `$p.sha) { throw ('sha256 校验失败: ' + `$p.name) }
 }
-Write-Host '[校验] sha256 全部通过'
 `$last = `$packs[-1]
-`$ex = Join-Path `$dir `$last.name
-if (Test-Path `$ex) { Remove-Item `$ex -Recurse -Force }
-Expand-Archive (Join-Path `$dir (`$last.name + '-' + `$last.ver + '.zip')) `$ex -Force
-& (Join-Path `$ex 'asp.ps1') install $Primary -Yes
-`$home2 = Join-Path `$env:USERPROFILE 'asp-coldstart'
-New-Item -ItemType Directory -Force -Path `$home2 | Out-Null
+`$stage = Join-Path `$dir ('stage-' + [guid]::NewGuid().ToString('N'))
+Expand-Archive (Join-Path `$dir (`$last.name + '-' + `$last.ver + '.zip')) `$stage
+`$ex = Join-Path `$home2 ('legacy-app-' + '$Primary')
+`$isUpdate = Test-Path (Join-Path `$ex '_state.json')
+New-Item `$ex -ItemType Directory -Force | Out-Null
+foreach(`$f in Get-ChildItem `$stage -Recurse -File) {
+    `$rel=`$f.FullName.Substring(`$stage.Length).TrimStart([char[]]'\/')
+    if(`$rel -match '^(_backup|_skill-state|_state)') { continue }
+    `$dst=Join-Path `$ex `$rel
+    New-Item (Split-Path `$dst) -ItemType Directory -Force | Out-Null
+    Copy-Item `$f.FullName `$dst -Force
+}
+if(`$isUpdate) { & (Join-Path `$ex 'asp.ps1') install $Primary -Yes }
+else { & (Join-Path `$ex 'asp.ps1') ui }
 `$cmd = 'irm ''' + '$tokenUrl' + ''' | iex'
 @('@echo off', 'chcp 65001 >nul', ('powershell -NoProfile -ExecutionPolicy Bypass -Command "' + `$cmd + '"'), 'pause') |
     Set-Content -Path (Join-Path `$home2 'update-token.bat') -Encoding ASCII
@@ -110,7 +118,7 @@ Write-Host ''
 Write-Host '======================================='
 Write-Host (' 更新: 以后双击 ' + `$home2 + '\update-token.bat')
 Write-Host '       或重跑购买时给你的安装命令（每周同一条）'
-Write-Host ' 可选: 双击 enable-weekly-autoupdate.bat 开启每周自动更新（默认关）'
+Write-Host ' 当前: 下载链接每3天刷新、内容每月更新；不再新增本机周更任务。'
 Write-Host ' 售后: 微信 xjinya（加后拉群）'
 Write-Host ' 条款: 转卖订单凭证视为分销（见群公告 EULA）'
 Write-Host '======================================='
@@ -128,7 +136,7 @@ function New-BootstrapSh([string]$Token, [string]$Sku, [object[]]$Packs, [string
     foreach ($p in $Packs) {
         $out += 'echo "[下载] ' + $p.name + ' ' + $p.ver + ' ..."'
         $out += 'curl -fsSL "' + $p.url + '" -o "$dir/' + $p.name + '-' + $p.ver + '.zip"'
-        $out += 'echo "' + $p.sha + '  $dir/' + $p.name + '-' + $p.ver + '.zip" | sha256sum -c - >/dev/null'
+        $out += 'file="$dir/' + $p.name + '-' + $p.ver + '.zip"; if command -v sha256sum >/dev/null; then got=$(sha256sum "$file" | cut -d" " -f1); else got=$(shasum -a 256 "$file" | cut -d" " -f1); fi; test "$got" = "' + $p.sha + '"'
     }
     $last = $Packs[-1]
     $out += @('echo "[校验] sha256 全部通过"',
@@ -143,7 +151,7 @@ function New-BootstrapSh([string]$Token, [string]$Sku, [object[]]$Packs, [string
         'echo ""',
         'echo "======================================="',
         'echo " 更新: bash $HOME/asp-coldstart/update-token.sh 或重跑购买时的命令"',
-        'echo " 可选每周自动更新 = crontab 加一行: 0 10 * * 0 curl -fsSL ' + $tokenUrl + ' | bash"',
+        'echo " 当前: 卖家每3天刷新下载链接，内容每月更新；不自动添加crontab。"',
         'echo " 售后: 微信 xjinya（加后拉群）；转卖订单凭证视为分销（EULA 见群公告）"',
         'echo "======================================="')
     return (($out -join "`n") + "`n")

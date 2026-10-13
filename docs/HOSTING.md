@@ -1,3 +1,7 @@
+# 当前托管方案
+
+新订单用私有 OSS 一单一 ZIP，72小时刷新下载URL、月度内容更新；运行和上线验收见 [发货运行手册](ops/FULFILLMENT.md)。下文为2026-10-12旧公开registry历史记录，不是当前订单权限设计，也不把7天签名当公开对象的访问控制。
+
 # 托管开通指南（OSS 主源 + GitHub Pages 备源）
 
 > registry 托管地 = 「每周一键更新」承诺的物理载体。**当前状态（2026-10-12）：双源已实联**——主源 GitHub Pages + 备源阿里云 OSS 杭州 `asp-registry-xjinya`（公共读，index.json no-cache，zip immutable）；桶级「阻止公共访问」已关（新账号默认开，需手动 PUT ?publicAccessBlock）；D13 v2 所需 7 天期 presigned URL 已实测可用。发版同步 = build 产物同时推 Pages（git push）与 OSS（ossutil/rclone）。

@@ -44,12 +44,74 @@ function Expand-Tilde([string]$Path) {
 function Backup-File([string]$Path, [string]$Tag = "") {
     if (Test-Path $Path) {
         if (-not (Test-Path $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null }
-        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $stamp = (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + [guid]::NewGuid().ToString("N").Substring(0,8)
         # Tag（如 agent id）用于区分不同 agent 的同名文件（如各自根下的 AGENTS.md），避免互相覆盖
         $prefix = if ($Tag) { $Tag + "-" } else { "" }
         $dest = Join-Path $BackupDir ($prefix + (Split-Path $Path -Leaf) + "." + $stamp + ".bak")
         Copy-Item $Path $dest -Force
     }
+}
+
+# Managed skill copies use file-level merges: no directory-inside-directory copies.
+function Sync-ManagedSkill([string]$Source, [string]$Target, [string]$AgentId, [string]$SkillName) {
+    $ledgerPath = Join-Path $Root ('_skill-state/' + $AgentId + '-' + $SkillName + '.json')
+    $previous = @{}
+    if (Test-Path $ledgerPath) {
+        $saved = Get-Content $ledgerPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($entry in $saved.PSObject.Properties) { $previous[$entry.Name] = [string]$entry.Value }
+    }
+    $legacyPath = Join-Path $Root 'scripts/legacy-skill-hashes.json'
+    $legacy = if (Test-Path $legacyPath) { Get-Content $legacyPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+    # Repair the exact known duplicate left by the old directory-copy bug.
+    # Never recursively remove buyer folders or unknown/custom duplicate files.
+    $nested = Join-Path $Target $SkillName
+    if (Test-Path -LiteralPath $nested -PathType Container) {
+        $canRepair = $true
+        $nestedFiles = @(Get-ChildItem -LiteralPath $nested -Recurse -File)
+        foreach ($duplicate in $nestedFiles) {
+            $relativeDuplicate = $duplicate.FullName.Substring($nested.Length).TrimStart([char[]]'\/').Replace('\','/')
+            $knownKey = $SkillName + '/' + $relativeDuplicate
+            $h = (Get-FileHash -LiteralPath $duplicate.FullName -Algorithm SHA256).Hash
+            if (-not $legacy -or -not $legacy.PSObject.Properties[$knownKey] -or (@($legacy.$knownKey) -notcontains $h)) { $canRepair = $false }
+        }
+        if ($canRepair -and $nestedFiles.Count -gt 0) {
+            foreach ($duplicate in $nestedFiles) {
+                Backup-File $duplicate ($AgentId + '-' + $SkillName + '-legacy-nested')
+                Remove-Item -LiteralPath $duplicate.FullName -Force
+            }
+            foreach ($dir in @(Get-ChildItem -LiteralPath $nested -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending)) {
+                if (@(Get-ChildItem -LiteralPath $dir.FullName -Force).Count -eq 0) { Remove-Item -LiteralPath $dir.FullName }
+            }
+            if (@(Get-ChildItem -LiteralPath $nested -Force).Count -eq 0) { Remove-Item -LiteralPath $nested }
+        } elseif ($nestedFiles.Count -gt 0) {
+            Write-Host ('    [保留] 未知嵌套技能内容未删除：' + $nested) -ForegroundColor Yellow
+        }
+    }
+    $next = @{}
+    foreach ($file in (Get-ChildItem -LiteralPath $Source -Recurse -File)) {
+        $relative = $file.FullName.Substring($Source.Length).TrimStart([char[]]'\/')
+        $destination = Join-Path $Target $relative
+        $sourceHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        if (Test-Path -LiteralPath $destination) {
+            $currentHash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
+            if ($currentHash -eq $sourceHash) { $next[$relative] = $sourceHash; continue }
+            # Unknown/pre-existing files and user edits are never overwritten silently.
+            $legacyKey = $SkillName + '/' + $relative.Replace('\','/')
+            $trustedLegacy = $legacy -and $legacy.PSObject.Properties[$legacyKey] -and (@($legacy.$legacyKey) -contains $currentHash)
+            if ((-not $previous.ContainsKey($relative) -or $currentHash -ne $previous[$relative]) -and -not $trustedLegacy) {
+                Backup-File $destination ($AgentId + '-' + $SkillName)
+                Write-Host ('    [冲突保留] ' + $SkillName + '/' + $relative + '；已有内容已备份，未覆盖') -ForegroundColor Yellow
+                if ($previous.ContainsKey($relative)) { $next[$relative] = $previous[$relative] }
+                continue
+            }
+            Backup-File $destination ($AgentId + '-' + $SkillName)
+        }
+        New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+        $next[$relative] = $sourceHash
+    }
+    New-Item -ItemType Directory -Path (Split-Path $ledgerPath) -Force | Out-Null
+    Write-Utf8NoBom $ledgerPath (($next | ConvertTo-Json -Depth 8) + "`n")
 }
 
 function Get-Adapters {
@@ -486,7 +548,7 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
             if ($SkillFilter) { $want = @($SkillFilter -split ','); $skillDirs = @($skillDirs | Where-Object { $want -contains $_.Name }) }   # UI 技能子集
             if ($skillDirs.Count -gt 0) {
                 foreach ($s in $skillDirs) {
-                    Copy-Item $s.FullName (Join-Path $dst $s.Name) -Recurse -Force
+                    Sync-ManagedSkill $s.FullName (Join-Path $dst $s.Name) $a.id $s.Name
                 }
                 Write-Host ("    skills: {0} 个 -> {1}" -f $skillDirs.Count, $dst)
                 $report += ("{0}: skills x{1}" -f $a.name, $skillDirs.Count)
@@ -506,6 +568,7 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
         elseif ($a.instructions.mode -eq "workspace") {
             Write-Host "    AGENTS.md: workspace 级，稍后运行 'asp.ps1 agents <项目目录>' 部署"
         } elseif ($a.instructions.mode -eq "cursor-rules" -and $a.instructions.target) {
+            $agentsMd = Get-Content (Join-Path $packDir "AGENTS.md") -Raw -Encoding UTF8
             # Cursor 全局规则：包装为带 frontmatter 的 .mdc；frontmatter 在标记外，正文走 asp 托管段（幂等）
             $mdcTarget = Expand-Tilde $a.instructions.target
             $mdcFm = "---`r`ndescription: AI 冷启动包 - PM 工作流与知识基准（asp 托管段自动更新，勿在标记间手工修改）`r`nalwaysApply: true`r`n---"
@@ -646,7 +709,7 @@ function Invoke-Update([string]$PackName) {
 
     # 下载 zip + sha256 校验 + 解压替换（保留 _state/_backup）
     $zipRel = $idx.packs.$PackName.zip
-    $zipUrl = ($idx.mirrors[0].TrimEnd('/') + "/" + $zipRel)
+    $zipUrl = ($m.TrimEnd('/') + "/" + $zipRel)
     $tmpZip = Join-Path $env:TEMP ("asp-" + [guid]::NewGuid().ToString("N") + ".zip")
     try {
         Invoke-WebRequest -Uri $zipUrl -OutFile $tmpZip -TimeoutSec 60 -UseBasicParsing
@@ -669,6 +732,14 @@ function Invoke-Update([string]$PackName) {
             $dst = Join-Path $Root $part
             if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
             Copy-Item $src $dst -Recurse
+        }
+    }
+    # Copy update helper files individually; preserve private state and backups.
+    $helperSource = Join-Path $staging 'scripts'
+    if (Test-Path $helperSource) {
+        foreach ($helperName in @('merge-skills.py','legacy-skill-hashes.json')) {
+            $helperFile=Join-Path $helperSource $helperName
+            if (Test-Path $helperFile) { New-Item (Join-Path $Root 'scripts') -ItemType Directory -Force | Out-Null; Copy-Item $helperFile (Join-Path $Root ('scripts/' + $helperName)) -Force }
         }
     }
     $newAsp = Join-Path $staging "asp.ps1"
@@ -1408,6 +1479,7 @@ load();
                 $uiState.started = $true; $uiState.running = $true; $uiState.done = $false
                 $aspPath = Join-Path $Root 'asp.ps1'
                 $selAgents = @($body.agents)
+                if ($selAgents.Count -eq 0) { $uiState.running=$false; Send-Json $ctx @{ ok=$false; msg="请至少选择一个部署工具" }; continue }
                 $selPresets = @($body.presets)
                 # 结构化选择：skills{pack:[names]} / agents_md:[packs] / prompts:[packs] / presets:[names]
                 $selSkills = @{}

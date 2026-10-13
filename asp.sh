@@ -311,7 +311,7 @@ do_install() {
   # 多包依赖链安装时只确认一次（v0.5.0 分层）
   if [ -z "${ASP_CONFIRMED:-}" ]; then
     read -r -p "[确认] 全部安装? (Y/n) " ans
-    [ -n "$ans" ] && [ "${ans,,}" != "y" ] && { echo "已取消。"; exit 0; }
+    [ -n "$ans" ] && [ "$(printf '%s' "$ans" | tr '[:upper:]' '[:lower:]')" != "y" ] && { echo "已取消。"; exit 0; }
     ASP_CONFIRMED=1
   fi
   local installed_agents=""
@@ -320,7 +320,10 @@ do_install() {
     echo "==> 部署到 $name"
     if [ -d "$packdir/skills" ] && [ -n "$skills_dir" ]; then
       dst="$(expand_tilde "$skills_dir")"; mkdir -p "$dst"
-      find "$packdir/skills" -mindepth 1 -maxdepth 1 -type d ! -name "_*" -exec cp -R {} "$dst" \;
+      for skill in "$packdir"/skills/*; do
+        [ -d "$skill" ] || continue
+        py "$ROOT/scripts/merge-skills.py" "$skill" "$dst/$(basename "$skill")" "$ROOT" "$id"
+      done
       echo "    skills -> $dst"
     fi
     if [ "$imode" = "managed-section" ] && [ -n "$itarget" ]; then
@@ -413,6 +416,10 @@ do_update() {
   rm -rf /tmp/asp-staging && mkdir -p /tmp/asp-staging && unzip -q -o /tmp/asp-pack.zip -d /tmp/asp-staging
   for part in packs adapters; do
     [ -d "/tmp/asp-staging/$part" ] && { rm -rf "$ROOT/$part"; cp -R "/tmp/asp-staging/$part" "$ROOT/$part"; }
+  done
+  mkdir -p "$ROOT/scripts"
+  for helper in merge-skills.py legacy-skill-hashes.json; do
+    [ ! -f "/tmp/asp-staging/scripts/$helper" ] || cp "/tmp/asp-staging/scripts/$helper" "$ROOT/scripts/$helper"
   done
   [ -f /tmp/asp-staging/asp.sh ] && cp /tmp/asp-staging/asp.sh "$ROOT/asp.sh" && chmod +x "$ROOT/asp.sh"
   py - "$STATE_FILE" "$rver" <<'PYEOF'

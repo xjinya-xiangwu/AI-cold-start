@@ -1,0 +1,67 @@
+# TEMPLATE for PRIVATE operations repository only; not active here.
+name: private-fulfillment
+on:
+  schedule:
+    - cron: '15 1 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [refresh, issue, publish]
+        default: refresh
+      platform:
+        type: choice
+        options: [xiaohongshu, taobao, pinduoduo]
+      order_id:
+        type: string
+      sku:
+        type: choice
+        options: [base, ai-pm]
+      version:
+        description: Monthly content version; never reuse published versions
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: private-fulfillment-writer
+  cancel-in-progress: false
+jobs:
+  fulfill:
+    if: github.event.repository.private == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fulfill or rotate links
+        env:
+          ASP_FULFILLMENT_BUCKET: ${{ secrets.ASP_FULFILLMENT_BUCKET }}
+          ASP_OSS_ENDPOINT: ${{ secrets.ASP_OSS_ENDPOINT }}
+          ASP_OSS_AK: ${{ secrets.ASP_OSS_AK }}
+          ASP_OSS_SK: ${{ secrets.ASP_OSS_SK }}
+          REQUEST_ACTION: ${{ inputs.action }}
+          REQUEST_PLATFORM: ${{ inputs.platform }}
+          REQUEST_ORDER: ${{ inputs.order_id }}
+          REQUEST_SKU: ${{ inputs.sku }}
+          REQUEST_VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import os, subprocess
+          action=os.environ.get('REQUEST_ACTION') or 'refresh'
+          args=['python','delivery/fulfillment.py','--store','oss','--output','ops-private/delivery-results.json']
+          if action=='issue':
+              args+=['issue','--platform',os.environ['REQUEST_PLATFORM'],'--order',os.environ['REQUEST_ORDER'],'--sku',os.environ['REQUEST_SKU'],'--confirmed-paid']
+          elif action=='publish':
+              args+=['publish','--version',os.environ['REQUEST_VERSION']]
+          else: args+=['refresh']
+          subprocess.run(args,check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: private-delivery-results
+          path: ops-private/delivery-results.json
+          retention-days: 3
+      - name: Manual sending reminder
+        run: echo 'Send each private order link using the approved platform channel; platform sender not configured.'
