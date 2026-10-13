@@ -14,7 +14,11 @@ param(
     [string]$Endpoint = "oss-cn-hangzhou.aliyuncs.com",
     [int]$TtlDays = 7,
     [string]$Only = "",
-    [string]$Revoke = ""
+    [string]$Revoke = "",
+    # 单订单模式（云端自动化）：传 -Sku 即走，不读 orders.csv；算法生成 token 并写订单日志到 OSS 私有前缀
+    [string]$Sku = "",
+    [string]$OrderRef = "",
+    [string]$Note = ""
 )
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
@@ -42,12 +46,16 @@ function Get-OssPresign([string]$Key, [int]$TtlSec) {
     "https://{0}.{1}/{2}?OSSAccessKeyId={3}&Expires={4}&Signature={5}" -f `
         $Bucket, $Endpoint, $Key, $AK, $expires, [uri]::EscapeDataString($sig)
 }
-function Invoke-OssApi([string]$Verb, [string]$Key, [string]$Body = "", [string]$Ctype = "") {
+function Invoke-OssApi([string]$Verb, [string]$Key, [string]$Body = "", [string]$Ctype = "", [switch]$PrivateAcl) {
     $date = [DateTime]::UtcNow.ToString('R')
-    $sig = Get-OssSignature ("{0}`n`n{1}`n{2}`n/{3}/{4}" -f $Verb, $Ctype, $date, $Bucket, $Key)
+    # x-oss-* 头必须参与 V1 签名（CanonicalizedOSSHeaders：位于 Date 之后、资源之前，行尾带 \n）
+    $ossHeaders = ""
+    if ($PrivateAcl) { $ossHeaders = "x-oss-object-acl:private`n" }
+    $sig = Get-OssSignature ("{0}`n`n{1}`n{2}`n{3}/{4}/{5}" -f $Verb, $Ctype, $date, $ossHeaders, $Bucket, $Key)
     # PS5.1 的 -Body <byte[]> 会被 ToString 成十进制串上传，必须走 -InFile 传原始字节
     $uri = "https://{0}.{1}/{2}" -f $Bucket, $Endpoint, $Key
     $headers = @{ Date = $date; Authorization = "OSS ${AK}:${sig}" }
+    if ($PrivateAcl) { $headers['x-oss-object-acl'] = 'private' }
     if ($Body) {
         $tmp = [System.IO.Path]::GetTempFileName()
         [System.IO.File]::WriteAllBytes($tmp, [System.Text.Encoding]::UTF8.GetBytes($Body))
@@ -158,13 +166,69 @@ if ($Revoke) {
     exit 0
 }
 
-if (-not $OrdersCsv) { $OrdersCsv = Join-Path $Root "registry/orders.csv" }
-if (-not (Test-Path $OrdersCsv)) {
-    Write-Host "[错误] 订单表不存在: $OrdersCsv（复制 registry/orders.example.csv 起步）" -ForegroundColor Red; exit 1
-}
+# ---------- 索引加载（两种模式共用） ----------
 $script:Idx = Get-Content (Join-Path $Root "registry/index.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 if (-not $Idx.packs.base.sha256) {
     Write-Host "[错误] registry/index.json 缺 sha256（包内副本是置空的）。改用远端索引（Pages/OSS 上的）或先跑 build-release。" -ForegroundColor Red; exit 1
+}
+
+function New-RandomToken([int]$Len = 12) {
+    # 密码学随机，字母表去掉易混淆字符（i/l/o/0/1）
+    $alphabet = "abcdefghjkmnpqrstuvwxyz23456789".ToCharArray()
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $bytes = New-Object byte[] $Len
+    $rng.GetBytes($bytes)
+    -join ($bytes | ForEach-Object { $alphabet[[int]$_ % $alphabet.Length] })
+}
+
+# ---------- 单订单模式（云端自动化：GitHub Actions / 任意有凭据的机器） ----------
+if ($Sku) {
+    $sku = $Sku.Trim()
+    if ($sku -ne 'base' -and $sku -ne 'ai-pm') { Write-Host "[错误] -Sku 只支持 base / ai-pm" -ForegroundColor Red; exit 1 }
+    $primary = $sku
+    # 防碰撞：token 已存在则重新生成（最多 5 次）
+    $token = ""
+    for ($i = 0; $i -lt 5; $i++) {
+        $cand = New-RandomToken
+        try { Invoke-WebRequest -Uri "$TokenBaseUrl/$cand.ps1" -Method Head -UseBasicParsing -TimeoutSec 10 | Out-Null }
+        catch { $token = $cand; break }   # 404 = 未占用
+    }
+    if (-not $token) { Write-Host '[错误] token 生成碰撞 5 次（概率~0，疑配置异常）' -ForegroundColor Red; exit 1 }
+
+    $packs = @(Get-OrderPack $sku)
+    Invoke-OssApi 'PUT' "i/$token.ps1" (New-BootstrapPs1 $token $sku $packs $primary) 'text/plain; charset=utf-8' | Out-Null
+    Invoke-OssApi 'PUT' "i/$token.sh"  (New-BootstrapSh  $token $sku $packs $primary) 'text/plain; charset=utf-8' | Out-Null
+    $check = Invoke-WebRequest -Uri "$TokenBaseUrl/$token.ps1" -UseBasicParsing
+    if ($check.StatusCode -ne 200 -or $check.Content -notmatch 'Signature=') { throw "签发自检失败: $token（回读内容异常）" }
+
+    # 订单日志：OSS 私有前缀（对象级 private ACL，匿名不可读），一单一 JSON
+    $logKey = "orders/log/{0}-{1}.json" -f [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'), $token
+    $logObj = [ordered]@{
+        v = 1; token = $token; sku = $sku
+        order_ref = $OrderRef; note = $Note
+        issued_at = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'); ttl_days = $TtlDays
+        cmd_win = "irm $TokenBaseUrl/$token.ps1 | iex"
+        cmd_sh  = "curl -fsSL $TokenBaseUrl/$token.sh | bash"
+    }
+    Invoke-OssApi 'PUT' $logKey ($logObj | ConvertTo-Json) 'application/json; charset=utf-8' -PrivateAcl | Out-Null
+
+    Write-Host "[已签发] $token (sku=$sku)  [自检✓]  [订单日志✓ oss://$Bucket/$logKey]"
+    Write-Host "  买家命令(Win): $($logObj.cmd_win)"
+    Write-Host "  买家命令(Mac/Linux): $($logObj.cmd_sh)"
+    if ($env:GITHUB_STEP_SUMMARY) {
+        $fence = '```'
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value (@(
+            '', '### 买家命令（复制发给买家）', "$fence`powershell", $logObj.cmd_win, $fence,
+            '', '### Mac / Linux', "$fence`bash", $logObj.cmd_sh, $fence,
+            '', "订单日志: ``oss://$Bucket/$logKey`` ｜ 撤销: ``gen-order-tokens.ps1 -Revoke $token``"
+        ) -join "`n")
+    }
+    exit 0
+}
+
+if (-not $OrdersCsv) { $OrdersCsv = Join-Path $Root "registry/orders.csv" }
+if (-not (Test-Path $OrdersCsv)) {
+    Write-Host "[错误] 订单表不存在: $OrdersCsv（复制 registry/orders.example.csv 起步）" -ForegroundColor Red; exit 1
 }
 $rows = Import-Csv $OrdersCsv
 if ($Only) { $rows = @($rows | Where-Object { $_.token -eq $Only }) }
