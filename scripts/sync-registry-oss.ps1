@@ -37,14 +37,22 @@ $regDir = Join-Path $Root "registry"
 $n = 0
 Get-ChildItem $regDir -Recurse -File | ForEach-Object {
     $key = $_.FullName.Substring($regDir.Length + 1).Replace('\', '/')
+    # v0.13.2：显式 Content-Type——PS5.1 客户端对无 charset 响应拿 Byte[]，ConvertFrom-Json 静默解析为空
+    $ctype = switch -Regex ($_.Extension) {
+        '\.json$' { 'application/json; charset=utf-8'; break }
+        '\.html?$' { 'text/html; charset=utf-8'; break }
+        '\.csv$' { 'text/csv; charset=utf-8'; break }
+        '\.zip$' { 'application/zip'; break }
+        default { 'application/octet-stream' }
+    }
     $cache = if ($_.Extension -eq '.zip') { 'public, max-age=31536000, immutable' } else { 'no-cache' }
-    Invoke-OssPut $key $_.FullName
+    Invoke-OssPut $key $_.FullName $ctype
     $n++
-    Write-Host ("  [oss] {0} ({1})" -f $key, $cache)
+    Write-Host ("  [oss] {0} ({1})" -f $key, $ctype)
 }
 if ($Zip) {
     if (-not (Test-Path $Zip)) { Write-Host "[错误] -Zip 不存在: $Zip" -ForegroundColor Red; exit 1 }
-    Invoke-OssPut ("packs/" + (Split-Path $Zip -Leaf)) $Zip
+    Invoke-OssPut ("packs/" + (Split-Path $Zip -Leaf)) $Zip 'application/zip'
     $n++
     Write-Host ("  [oss] packs/{0}" -f (Split-Path $Zip -Leaf))
 }

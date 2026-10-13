@@ -628,7 +628,10 @@ function Invoke-Update([string]$PackName) {
             Write-Host ("[更新] 尝试源: {0}" -f $m)
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
             $resp = Invoke-WebRequest -Uri ($m.TrimEnd('/') + "/index.json") -TimeoutSec 10 -UseBasicParsing
-            $idx = $resp.Content | ConvertFrom-Json
+            # v0.13.2：源返回无 charset（如 OSS octet-stream）时 Content 为 byte[]——
+            # PS5.1 对 byte[] 管道 ConvertFrom-Json 会静默解析为空对象，必须先按 UTF-8 解码
+            $raw = if ($resp.Content -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($resp.Content) } else { [string]$resp.Content }
+            $idx = $raw | ConvertFrom-Json
             break
         } catch { Write-Host "  源不可达，切换下一个..." -ForegroundColor DarkGray }
     }

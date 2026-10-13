@@ -1,140 +1,144 @@
 {
-  "schema": "asp-registry/0.2",
-  "generated_at": "2026-10-11T16:10:04Z",
-  "note": "双更新源：GitHub Pages 主源 + 阿里云 OSS 杭州备源（2026-10-12 实联，替 REPLACE 占位符）；asp update 双源 failover（主源超时自动切备源）。zip 随仓库分发 registry/packs/ 同步 OSS。",
-  "mirrors": [
-    "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
-    "https://asp-registry-xjinya.oss-cn-hangzhou.aliyuncs.com"
-  ],
-  "packs": {
-    "base": {
-      "version": "v0.13.1",
-      "display_name": "AI 冷启动包 · 基础包（跨职业通用）",
-      "price_note": "10 元档",
-      "requires": [],
-      "skills_count": 25,
-      "skills_categories": {
-        "提升开发效率": [
-          "dev-handoff",
-          "tech-spec-review",
-          "release-notes",
-          "mermaid-diagrams"
-        ],
-        "保障质量": [
-          "bug-triage",
-          "post-mortem",
-          "launch-readiness",
-          "decision-premortem"
-        ],
-        "规划类": [
-          "idea-grilling",
-          "assumption-audit",
-          "okr-planning",
-          "project-kickoff",
-          "risk-register",
-          "stakeholder-mapping",
-          "minimal-solution"
-        ],
-        "通用工具": [
-          "meeting-to-decisions",
-          "data-insight",
-          "experiment-design",
-          "metric-design",
-          "fresh-docs"
-        ],
-        "思路与决策": [
-          "idea-grilling",
-          "brainstorming",
-          "assumption-audit",
-          "decision-premortem"
-        ],
-        "质量保障": [
-          "bug-triage",
-          "systematic-debugging",
-          "post-mortem",
-          "launch-readiness",
-          "verify-before-done"
-        ],
-        "效率与体验": [
-          "ponytail",
-          "adhd-mode"
-        ]
-      },
-      "mcp_defaults": [],
-      "mcp_note": "v0.8.0 起默认零 MCP：文档查新能力由 fresh-docs skill 承载；context7 等转可选（optional-mcp.md）",
-      "prompts_count": 11,
-      "zip": "packs/base-v0.13.1.zip",
-      "sha256": "b0acf10472ef3669170668e0ca3c84b1174ed5b10520aca2af9c60378200619e",
-      "sha256_note": "待发版重新打包生成（sha 为空时 update 哈希校验必然失败从而安全中止）"
-    },
-    "ai-pm": {
-      "version": "v0.13.1",
-      "display_name": "AI 冷启动包 · AI 产品经理专业包",
-      "price_note": "19.9 元档（含基础包合计 29.9）",
-      "requires": [
-        "base"
-      ],
-      "skills_count": 12,
-      "skills_categories": {
-        "发现与洞察": [
-          "user-research-interview",
-          "market-sizing",
-          "competitor-analysis",
-          "feedback-triage"
-        ],
-        "定义与设计": [
-          "prd-drafting",
-          "prd-review",
-          "user-story",
-          "feature-prioritization"
-        ],
-        "AI 产品专项": [
-          "ai-eval-design",
-          "ai-ux-patterns"
-        ],
-        "战略与交付": [
-          "roadmap-planning",
-          "product-reporting"
-        ]
-      },
-      "prompts_count": 31,
-      "zip": "packs/ai-pm-v0.13.1.zip",
-      "sha256": "0ec913acc0f5b7d6cfaf0c579055e66ebcca5ca5eac4ead3ab8ed4b33626a5b0",
-      "sha256_note": "待发版重新打包生成（同 base）"
-    }
-  },
-  "adapters": {
-    "claude-code": {
-      "version": "0.1",
-      "changelog": "实测"
-    },
-    "zcode": {
-      "version": "0.1",
-      "changelog": "实测（mcp.servers 键实证）"
-    },
-    "dsh": {
-      "version": "0.1",
-      "changelog": "真机实测（全局 skills/AGENTS.md）"
-    },
-    "codex": {
-      "version": "0.2",
-      "changelog": "toml-managed 真机实测"
-    },
-    "cursor": {
-      "version": "0.3",
-      "changelog": "v0.7.0 context7 切 remote（独立 cursor.mcp.json 模板）"
-    },
-    "opencode": {
-      "version": "0.2",
-      "changelog": "真机写入实测"
-    },
-    "kimi": {
-      "version": "0.2",
-      "changelog": "真机实测（Kimi Claw openclaw 路径）"
-    },
-    "workbuddy": {
-      "version": "0.3",
-      "changelog": "v0.7.0 mcp.json 判定非加载面（实测），MCP 降级 manual + 设置界面引导"
-    }
-  }
+    "schema":  "asp-registry/0.2",
+    "generated_at":  "2026-10-13T12:14:24Z",
+    "note":  "双更新源：GitHub Pages 主源 + 阿里云 OSS 杭州备源（2026-10-12 实联，替 REPLACE 占位符）；asp update 双源 failover（主源超时自动切备源）。zip 随仓库分发 registry/packs/ 同步 OSS。",
+    "mirrors":  [
+                    "https://xjinya-xiangwu.github.io/AI-cold-start/registry",
+                    "https://asp-registry-xjinya.oss-cn-hangzhou.aliyuncs.com"
+                ],
+    "packs":  {
+                  "base":  {
+                               "version":  "v0.13.2",
+                               "display_name":  "AI 冷启动包 · 基础包（跨职业通用）",
+                               "price_note":  "10 元档",
+                               "requires":  [
+
+                                            ],
+                               "skills_count":  25,
+                               "skills_categories":  {
+                                                         "提升开发效率":  [
+                                                                        "dev-handoff",
+                                                                        "tech-spec-review",
+                                                                        "release-notes",
+                                                                        "mermaid-diagrams"
+                                                                    ],
+                                                         "保障质量":  [
+                                                                      "bug-triage",
+                                                                      "post-mortem",
+                                                                      "launch-readiness",
+                                                                      "decision-premortem"
+                                                                  ],
+                                                         "规划类":  [
+                                                                     "idea-grilling",
+                                                                     "assumption-audit",
+                                                                     "okr-planning",
+                                                                     "project-kickoff",
+                                                                     "risk-register",
+                                                                     "stakeholder-mapping",
+                                                                     "minimal-solution"
+                                                                 ],
+                                                         "通用工具":  [
+                                                                      "meeting-to-decisions",
+                                                                      "data-insight",
+                                                                      "experiment-design",
+                                                                      "metric-design",
+                                                                      "fresh-docs"
+                                                                  ],
+                                                         "思路与决策":  [
+                                                                       "idea-grilling",
+                                                                       "brainstorming",
+                                                                       "assumption-audit",
+                                                                       "decision-premortem"
+                                                                   ],
+                                                         "质量保障":  [
+                                                                      "bug-triage",
+                                                                      "systematic-debugging",
+                                                                      "post-mortem",
+                                                                      "launch-readiness",
+                                                                      "verify-before-done"
+                                                                  ],
+                                                         "效率与体验":  [
+                                                                       "ponytail",
+                                                                       "adhd-mode"
+                                                                   ]
+                                                     },
+                               "mcp_defaults":  [
+
+                                                ],
+                               "mcp_note":  "v0.8.0 起默认零 MCP：文档查新能力由 fresh-docs skill 承载；context7 等转可选（optional-mcp.md）",
+                               "prompts_count":  11,
+                               "zip":  "packs/base-v0.13.2.zip",
+                               "sha256":  "afe61781b98e308fb8b81958f8a639bff1040dfbe150e9a8cb5ba59f3a87c1c8",
+                               "sha256_note":  "待发版重新打包生成（sha 为空时 update 哈希校验必然失败从而安全中止）"
+                           },
+                  "ai-pm":  {
+                                "version":  "v0.13.2",
+                                "display_name":  "AI 冷启动包 · AI 产品经理专业包",
+                                "price_note":  "19.9 元档（含基础包合计 29.9）",
+                                "requires":  [
+                                                 "base"
+                                             ],
+                                "skills_count":  12,
+                                "skills_categories":  {
+                                                          "发现与洞察":  [
+                                                                        "user-research-interview",
+                                                                        "market-sizing",
+                                                                        "competitor-analysis",
+                                                                        "feedback-triage"
+                                                                    ],
+                                                          "定义与设计":  [
+                                                                        "prd-drafting",
+                                                                        "prd-review",
+                                                                        "user-story",
+                                                                        "feature-prioritization"
+                                                                    ],
+                                                          "AI 产品专项":  [
+                                                                          "ai-eval-design",
+                                                                          "ai-ux-patterns"
+                                                                      ],
+                                                          "战略与交付":  [
+                                                                        "roadmap-planning",
+                                                                        "product-reporting"
+                                                                    ]
+                                                      },
+                                "prompts_count":  31,
+                                "zip":  "packs/ai-pm-v0.13.2.zip",
+                                "sha256":  "50d036311ba846c2466c83092fd3b9774417af8b191eaccc5b354afec87475e6",
+                                "sha256_note":  "待发版重新打包生成（同 base）"
+                            }
+              },
+    "adapters":  {
+                     "claude-code":  {
+                                         "version":  "0.1",
+                                         "changelog":  "实测"
+                                     },
+                     "zcode":  {
+                                   "version":  "0.1",
+                                   "changelog":  "实测（mcp.servers 键实证）"
+                               },
+                     "dsh":  {
+                                 "version":  "0.1",
+                                 "changelog":  "真机实测（全局 skills/AGENTS.md）"
+                             },
+                     "codex":  {
+                                   "version":  "0.2",
+                                   "changelog":  "toml-managed 真机实测"
+                               },
+                     "cursor":  {
+                                    "version":  "0.3",
+                                    "changelog":  "v0.7.0 context7 切 remote（独立 cursor.mcp.json 模板）"
+                                },
+                     "opencode":  {
+                                      "version":  "0.2",
+                                      "changelog":  "真机写入实测"
+                                  },
+                     "kimi":  {
+                                  "version":  "0.2",
+                                  "changelog":  "真机实测（Kimi Claw openclaw 路径）"
+                              },
+                     "workbuddy":  {
+                                       "version":  "0.3",
+                                       "changelog":  "v0.7.0 mcp.json 判定非加载面（实测），MCP 降级 manual + 设置界面引导"
+                                   }
+                 }
 }

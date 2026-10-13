@@ -1,5 +1,13 @@
 # UPDATES
 
+## v0.13.2（2026-10-13）— 随包图文手册（docx）
+
+包内技能零变化（仍为 25+12）；新增随包手册：
+
+- **`使用手册.docx`**（zip 根目录，双击即读）：图文版用户手册——安装三步 / 每周更新 / doctor 体检 / 回滚换机卸载 / FAQ / Mac 边界 / 条款，内嵌 4 张真机截图（安装配置页、安装报告、更新运行、doctor 健康表）
+- 在线图文版（HTML）：https://asp-registry-xjinya.oss-cn-hangzhou.aliyuncs.com/docs/manual/user-manual-v1.1.html
+- 已购 v0.13.1 用户双击 update.bat 即可获得本版（手册随更新自动到位）
+
 ## 交付设施（2026-10-12）— D13 v2 订单通道 v1.0 上线（纯静态 token 方案）
 
 包内容不变（仍为 v0.13.1 双包）；本条记录交付基础设施：

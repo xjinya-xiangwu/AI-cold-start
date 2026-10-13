@@ -64,6 +64,8 @@ Get-ChildItem $Root -File | Where-Object { $_.Name -match '^asp\.(ps1|sh)$|^setu
 }
 New-Item (Join-Path $stage "docs") -ItemType Directory -Force | Out-Null
 Copy-Item (Join-Path $Root "docs/MIGRATE.md") (Join-Path $stage "docs/MIGRATE.md")
+# v0.13.2：图文使用手册（docx，带真机截图）入包根目录——随包第一眼可见；替代原"发版后再补手册"的缺口
+Copy-Item (Join-Path $Root "docs/manual/使用手册.docx") (Join-Path $stage "使用手册.docx")
 Write-Host ("[打包] 包含 packs: {0}" -f ($includePacks -join ", "))
 $zipName = "$Pack-$tag.zip"
 $zipPath = Join-Path $Dist $zipName
