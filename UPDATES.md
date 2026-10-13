@@ -8,6 +8,7 @@
 - **双更新源实联**（同日早前）：registry mirrors[1] = 阿里云 OSS 杭州 `asp-registry-xjinya`，Pages 抖动时 `asp update` 自动切换（failover 已实测）
 - **验收**：base/ai-pm 双 SKU 沙箱 E2E（25/37 技能、幂等、隔离、撤销 404）全绿；测试 token 已清理
 - **L2 更新触达（默认关）**：bootstrap 生成 enable/disable-weekly-autoupdate.bat（PowerShell Register-ScheduledTask，每周日 10:00 自动重跑 token 命令）；沙箱真机验收注册/删除
+- **云端自动签发（2026-10-13）**：gen-order-tokens 单订单模式（算法 token+防碰撞预检+订单日志 OSS 私有前缀 private ACL）+ GitHub Actions issue-order workflow（暂存 docs/ops/ 待 workflow scope 激活，secrets 已配）+ 用户动线时序图（docs/diagrams/）
 - **发版联动**：build-release 末尾自动同步 OSS 备源（scripts/sync-registry-oss.ps1，21 文件实测）；签发自带回读自检
 - 订单表 `registry/orders.csv` 含 token 永不入库（.gitignore）；示例见 `registry/orders.example.csv`
 

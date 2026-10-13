@@ -119,3 +119,10 @@ curl -fsSL https://asp.<域名>/i/<orderToken> | sh
 - **签发自检**：每单 PUT 后回读 token URL，断言 200 + presign 内嵌——把历史上 byte[] 被 ToString 的上传损坏类回归永久钉死。
 - **发版联动**：新增 `scripts/sync-registry-oss.ps1`（registry 全量 → OSS，元数据 no-cache / zip immutable），build-release.ps1 末尾自动调用（有凭据自动跑，无凭据黄字提示手动）。
 
+### 追加（2026-10-13，云端自动签发）
+
+- **单订单模式**：`gen-order-tokens.ps1 -Sku base|ai-pm -OrderRef <订单号> -Note <备注>`——算法生成 12 位随机 token（RNGCryptoServiceProvider + 防碰撞预检）→ 签发（公共读）→ 回读自检 → **订单日志**写 OSS 私有前缀 `orders/log/<时间戳>-<token>.json`（对象级 private ACL，实测匿名 403）；CI 环境自动把买家命令写入 GITHUB_STEP_SUMMARY。
+- **云端触发**：GitHub Actions `issue-order`（workflow_dispatch：SKU+订单号；secrets ASP_OSS_AK/SK）。**部署注意**：workflow 文件暂存 `docs/ops/issue-order.workflow.yml`——OAuth token 无 workflow scope 时不能创建 `.github/workflows/` 路径（API 404 实证），任一机器 `gh auth refresh -s workflow` 后 git mv 激活；激活前本机单订单模式为等价路径。
+- **运营 SOP**：新订单=Run workflow（或本机 -Sku）→ 摘要复制买家命令 → 发货；周更=build-release（自动同步 OSS）→ 全量重签；退款/转卖=-Revoke；换机=重跑同一命令。
+- **用户动线图**：`docs/diagrams/order-flow-sequence.html`（Sequence：买家/阿里云OSS/维护者/GitHub Actions 四生命线 + LOOP 周更片段；@2x PNG 同目录），Notion 产品中心已嵌。
+
