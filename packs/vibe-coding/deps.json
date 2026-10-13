@@ -1,0 +1,9 @@
+{
+    "schema": "asp-deps/0.1",
+    "name": "vibe-coding",
+    "display_name": "智能体冷启动包 · vibe coding 方向包",
+    "requires": [
+        "base"
+    ],
+    "description": "AI 编码防翻车纪律：规格/TDD/增量切片/评审/安全加固/Git 纪律，12 个技能 + 10 条指令 + 十环工作流"
+}
