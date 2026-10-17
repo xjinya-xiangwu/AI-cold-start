@@ -100,11 +100,17 @@ function Sync-ManagedSkill([string]$Source, [string]$Target, [string]$AgentId, [
             $trustedLegacy = $legacy -and $legacy.PSObject.Properties[$legacyKey] -and (@($legacy.$legacyKey) -contains $currentHash)
             if ((-not $previous.ContainsKey($relative) -or $currentHash -ne $previous[$relative]) -and -not $trustedLegacy) {
                 Backup-File $destination ($AgentId + '-' + $SkillName)
-                Write-Host ('    [冲突保留] ' + $SkillName + '/' + $relative + '；已有内容已备份，未覆盖') -ForegroundColor Yellow
-                if ($previous.ContainsKey($relative)) { $next[$relative] = $previous[$relative] }
-                continue
+                if ($previous.ContainsKey($relative)) {
+                    # 修③（E2E 2026-10-17，N1/DST-01 对齐）：个人改动进备份，顶层换新版；overlay 机制 P1 上线前备份即恢复点
+                    Write-Host ('    [个人改动已备份] ' + $SkillName + '/' + $relative + '；顶层更新为新版（副本在 _backup/）') -ForegroundColor Yellow
+                } else {
+                    # 来源不明的既有文件：保留并报告，绝不覆盖（TC-R00-05）
+                    Write-Host ('    [冲突保留] ' + $SkillName + '/' + $relative + '；来源不明的既有文件已备份，未覆盖') -ForegroundColor Yellow
+                    continue
+                }
+            } else {
+                Backup-File $destination ($AgentId + '-' + $SkillName)
             }
-            Backup-File $destination ($AgentId + '-' + $SkillName)
         }
         New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
@@ -571,7 +577,7 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
             $agentsMd = Get-Content (Join-Path $packDir "AGENTS.md") -Raw -Encoding UTF8
             # Cursor 全局规则：包装为带 frontmatter 的 .mdc；frontmatter 在标记外，正文走 asp 托管段（幂等）
             $mdcTarget = Expand-Tilde $a.instructions.target
-            $mdcFm = "---`r`ndescription: AI 冷启动包 - PM 工作流与知识基准（asp 托管段自动更新，勿在标记间手工修改）`r`nalwaysApply: true`r`n---"
+            $mdcFm = "---`r`ndescription: AI 冷启动包 - 角色与工作流（asp 托管段自动更新，勿在标记间手工修改）`r`nalwaysApply: true`r`n---"
             if (Test-Path $mdcTarget) {
                 $r = Deploy-ManagedSection $agentsMd $mdcTarget $a.id
             } else {
@@ -581,6 +587,13 @@ function Invoke-Install([string]$PackName, [string[]]$AgentIds = @(), [string]$S
             }
             Write-Host ("    rules -> {0} ({1})" -f $a.instructions.target, $r)
             $report += ("{0}: rules {1}" -f $a.name, $r)
+            # 修④（E2E 2026-10-17）：旧版规则文件名 asp-ai-pm.mdc（错误绑定包名）迁移——先备份再清理，防双规则重复加载
+            $legacyMdc = Join-Path (Split-Path $mdcTarget) 'asp-ai-pm.mdc'
+            if ((Test-Path -LiteralPath $legacyMdc) -and ($mdcTarget -notlike '*asp-ai-pm.mdc')) {
+                Backup-File $legacyMdc ($a.id + '-legacy-rules')
+                Remove-Item -LiteralPath $legacyMdc -Force
+                Write-Host ("    rules -> 旧文件 asp-ai-pm.mdc 已备份并清理（防重复加载）") -ForegroundColor Yellow
+            }
         }
 
         # 2.5) 探测诚实化（v0.7.0）：目录特征命中但可执行文件不在 PATH——可能是迁移残留而非真实安装
@@ -797,6 +810,72 @@ function Get-MigrateCandidates($a) {
     return $items
 }
 
+# ---- R01-lite（D18）：export 产物凭证值 -> <AGENT-SYNC:key> 占位符（与 p0 分支 export-sanitize.ps1 同格式，合并友好） ----
+function Convert-JsonPlaceholders([object]$node, [string]$KeyNameRx, [string]$FilePath, [string]$PathPrefix, $Redactions) {
+    $c = 0
+    if ($node -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($p in @($node.PSObject.Properties)) {
+            if ($p.Name -match $KeyNameRx -and $p.Value -is [string] -and $p.Value -and -not $p.Value.StartsWith("<AGENT-SYNC:")) {
+                $ph = "<AGENT-SYNC:" + $p.Name + ">"
+                $node.PSObject.Properties[$p.Name].Value = $ph
+                [void]$Redactions.Add(@{ file = $FilePath; json_path = ($PathPrefix + $p.Name); placeholder = $ph })
+                $c++
+            } elseif ($null -ne $p.Value -and ($p.Value -is [System.Management.Automation.PSCustomObject] -or ($p.Value -is [System.Collections.IEnumerable] -and $p.Value -isnot [string]))) {
+                $c += Convert-JsonPlaceholders $p.Value $KeyNameRx $FilePath ($PathPrefix + $p.Name + ".") $Redactions
+            }
+        }
+    } elseif ($null -ne $node -and $node -is [System.Collections.IEnumerable] -and $node -isnot [string]) {
+        $i = 0
+        foreach ($x in $node) { $c += Convert-JsonPlaceholders $x $KeyNameRx $FilePath ($PathPrefix + $i + ".") $Redactions; $i++ }
+    }
+    return $c
+}
+function Convert-ToPlaceholders([string]$Dir) {
+    $keyNameRx = '(?i)(token|api[_-]?key|secret|authorization|password|credential)'
+    $lineRx = '(?i)^(\s*[\w.\-]*(token|api[_-]?key|secret|pat|authorization|password|credential)[\w.\-]*\s*[:=]\s*)["'']?([^"''\r\n]+)["'']?\s*$'
+    $count = 0
+    $redactions = New-Object System.Collections.ArrayList
+    $files = @(Get-ChildItem $Dir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
+        $_.Extension -match '^\.(json|toml|ini|env|template)$' -or $_.Name -like '*.env' -or $_.Name -like '*.template'
+    })
+    foreach ($f in $files) {
+        if ($f.Extension -eq ".json") {
+            try { $obj = [System.IO.File]::ReadAllText($f.FullName) | ConvertFrom-Json } catch { continue }
+            $c = Convert-JsonPlaceholders $obj $keyNameRx $f.FullName "" $redactions
+            $count += $c
+            if ($c -gt 0) {
+                $out = $obj | ConvertTo-Json -Depth 12
+                [System.IO.File]::WriteAllText($f.FullName, $out, (New-Object Text.UTF8Encoding($false)))
+            }
+        } else {
+            $lines = [System.IO.File]::ReadAllLines($f.FullName)
+            $changed = $false
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+                if ($lines[$i].TrimStart().StartsWith("#")) { continue }
+                $m = [regex]::Match($lines[$i], $lineRx)
+                if ($m.Success) {
+                    $key = $m.Groups[1].Value.Trim(" :=").Trim('"').Trim("'")
+                    $lines[$i] = $m.Groups[1].Value + '"<AGENT-SYNC:' + $key + '>"'
+                    $count++; $changed = $true
+                }
+            }
+            if ($changed) { [System.IO.File]::WriteAllLines($f.FullName, $lines, (New-Object Text.UTF8Encoding($false))) }
+        }
+    }
+    return $count
+}
+function Find-CredentialValues([string]$Dir) {
+    # 值形态兜底扫描：键名启发式漏掉的凭证照样拦（命中仅报文件，不回显内容）
+    $pat = '(?i)(sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_\-]{16,}|xox[baprs]-[A-Za-z0-9\-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{30,}|BEGIN [A-Z ]*PRIVATE KEY)'
+    $hits = @()
+    foreach ($f in (Get-ChildItem $Dir -Recurse -File -ErrorAction SilentlyContinue)) {
+        if ($f.Length -gt 2MB) { continue }
+        try { $txt = [System.IO.File]::ReadAllText($f.FullName) } catch { continue }
+        if ($txt -match $pat) { $hits += $f.FullName.Substring($Dir.Length) }
+    }
+    return ,$hits
+}
+
 function Invoke-Export([string]$Out) {
     $agents = Find-Agents
     if ($agents.Count -eq 0) { Show-Guide; exit 0 }
@@ -861,19 +940,39 @@ function Invoke-Export([string]$Out) {
     }
     if ($manifestItems.Count -eq 0) { Write-Host "[提示] 未收集到任何可迁移文件。"; exit 0 }
 
+    # ---- R01-lite 落点：先去凭证，lint 兜底零命中才允许打包（D18；命中 exit 5，只报文件不回显值） ----
+    $redactCount = Convert-ToPlaceholders $staging
+    $lintHits = Find-CredentialValues $staging
+    if ($lintHits.Count -gt 0) {
+        Write-Host "[错误] ASP-E-LINT-001：产物仍含疑似凭证值，已中止（仅列文件，不回显内容）：" -ForegroundColor Red
+        $lintHits | ForEach-Object { Write-Host ("  " + $_) -ForegroundColor Red }
+        Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+        exit 5
+    }
+    if ($redactCount -gt 0) { Write-Host ("[R01] 已将 {0} 处凭证值替换为 <AGENT-SYNC:*> 占位符（还原后需手动重填真实值）" -f $redactCount) -ForegroundColor Green }
+
     $manifest = @{
         tool = "asp"; tool_version = $MigToolVersion; kind = "asp-env-migration"
         created_at = (Get-Date -Format s)
         host = @{ os = "windows"; user = $env:USERNAME }
         agents = @($agents | ForEach-Object id)
         items = $manifestItems
-        note = "merge 语义：还原只增改不删除；包内 MCP 配置可能含 API key，请妥善保管"
+        note = "merge 语义：还原只增改不删除；凭证值已替换为 <AGENT-SYNC:*> 占位符（R01），还原后需按 redactions 重填真实值"
+        redactions = $redactCount
     }
     Write-Utf8NoBom (Join-Path $staging "manifest.json") ($manifest | ConvertTo-Json -Depth 8)
-    Write-Utf8NoBom (Join-Path $staging "README-MIGRATE.txt") ("asp 环境迁移包（生成于 $(Get-Date -Format s)）`r`n还原：把 asp 目录复制到新机器后运行  powershell -File asp.ps1 migrate <本包路径>`r`n注意：包内 MCP 配置可能含 API key，请妥善保管；还原为 merge 语义（不删除目标已有文件）。")
+    Write-Utf8NoBom (Join-Path $staging "README-MIGRATE.txt") ("asp 环境迁移包（生成于 $(Get-Date -Format s)）`r`n还原：把 asp 目录复制到新机器后运行  powershell -File asp.ps1 migrate <本包路径>`r`n注意：凭证值已替换为 <AGENT-SYNC:*> 占位符（R01），还原后需重填真实值；还原为 merge 语义（不删除目标已有文件）。")
 
     $outFile = if ($Out) { $Out } else { Join-Path $env:TEMP ("asp-env-" + $stamp + ".zip") }
-    Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outFile -Force
+    # 修①（E2E 2026-10-17）：Compress-Archive 只支持 .zip，传 .tar.gz 必抛 NotSupportedArchiveFileExtension
+    if ($outFile -like '*.tar.gz' -or $outFile -like '*.tgz') {
+        & tar -czf $outFile -C $staging .
+        if ($LASTEXITCODE -ne 0) { Write-Host "[错误] tar 打包失败：$outFile" -ForegroundColor Red; Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
+    } elseif ($outFile -like '*.zip') {
+        Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outFile -Force
+    } else {
+        Write-Host "[错误] -Out 仅支持 .zip / .tar.gz / .tgz：$outFile" -ForegroundColor Red; Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue; exit 1
+    }
 
     # ---- GitHub 通道（-Repo）：包进私有仓库的 env 分支，新机器零 U 盘直接还原 ----
     if ($Repo) {
@@ -901,7 +1000,7 @@ function Invoke-Export([string]$Out) {
             Write-Host ("    ① git clone {0}" -f $Repo) -ForegroundColor Green
             Write-Host "    ② 进入目录: asp.ps1 install        （装 asp 运行环境本身）" -ForegroundColor Green
             Write-Host ("    ③ asp.ps1 migrate env -Yes         （从 env/ 一键还原全部环境）") -ForegroundColor Green
-            Write-Host "  ⚠ 必须是 PRIVATE 仓库——包内 MCP 配置可能含 API key，公开=泄露。" -ForegroundColor Yellow
+            Write-Host "  ⚠ 建议 PRIVATE 仓库——凭证值已做占位符替换（R01），但结构信息仍属个人环境。" -ForegroundColor Yellow
         } else {
             Write-Host "[错误] git push 失败——本地包保留在: $outFile（可手动推或 U 盘带过去）" -ForegroundColor Red
         }
@@ -912,7 +1011,7 @@ function Invoke-Export([string]$Out) {
     Write-Host ""
     Write-Host ("[完成] 迁移包: {0}" -f $outFile) -ForegroundColor Green
     Write-Host "  还原: 新机器 asp 目录下运行  asp.ps1 migrate <本包路径>" -ForegroundColor Green
-    Write-Host "  ⚠ 包内可能含 API key（MCP 配置），请妥善保管。" -ForegroundColor Yellow
+    Write-Host "  ✔ 凭证值已替换为 <AGENT-SYNC:*> 占位符（R01），还原后需重填真实值。" -ForegroundColor Yellow
 }
 
 function Invoke-Migrate([string]$PkgPath, [bool]$AllAgents, [bool]$DryRun) {
