@@ -9,6 +9,7 @@
 #   asp.ps1 doctor             MCP 流量灯体检：对已部署配置逐条做真实 initialize 握手（v0.7.0）
 #   asp.ps1 export [-Out x]    收集本机全部 agent 环境 -> 迁移包（零依赖）
 #   asp.ps1 migrate <包>       把迁移包还原到本机（merge 语义：只增改不删除）
+#   asp.ps1 <cmd> -Json        机器可读输出（envelope: ok/step/code/message/data），当前覆盖 detect|status|doctor
 # 设计约束: 零外部依赖（仅 Windows 自带 PowerShell 5.1+；tar.gz 还原用系统自带 tar）
 # =====================================================================
 param(
@@ -20,6 +21,7 @@ param(
     [switch]$DryRun,
     [switch]$Yes,
     [switch]$IncludeOversized,
+    [switch]$Json,
     [string]$Repo = "",
     [string]$Branch = "env-sync"
 )
@@ -33,6 +35,73 @@ $StateFile   = Join-Path $Root "_state.json"
 $BackupDir   = Join-Path $Root "_backup"
 $BeginMark   = "<!-- asp:begin -->"
 $EndMark     = "<!-- asp:end -->"
+
+# ---------- 机器可读契约（v0.15 / P0-4；D31 Prompt-First 前置）----------
+# Agent 代装靠 exit code + JSON 判断成败，不能正则解析中文文案（误判成本 = 用户以为装好了）。
+# 稳定契约：stdout 单行 JSON envelope；退出码语义固定；人类模式（不带 -Json）输出完全不变。
+$script:ExitCode = @{
+    OK            = 0
+    FAILURE       = 1   # 通用失败（历史兼容）
+    USAGE         = 2   # 参数/命令错误
+    ENVIRONMENT   = 3   # 环境不满足（无 agent / 缺依赖）
+    CONFLICT      = 4   # 冲突待用户决策
+    SECURITY_GATE = 5   # 安全门拦截（凭证/敏感路径）
+    NETWORK       = 6   # 网络或签名链接失效
+    INTEGRITY     = 7   # 校验失败（哈希/完整性）
+}
+
+# PS5.1 管道版 ConvertTo-Json 在本上下文偶发挂起（见 Invoke-UI 同款注释），故手写零管道序列化。
+function ConvertTo-JsonLine($v) {
+    if ($null -eq $v) { return 'null' }
+    if ($v -is [bool]) { if ($v) { return 'true' } else { return 'false' } }
+    if ($v -is [int] -or $v -is [long] -or $v -is [double] -or $v -is [decimal]) { return [string]$v }
+    if ($v -is [string]) {
+        # 纯 ASCII 输出（非 ASCII 一律 \\uXXXX 转义）：PS5.1 子进程→父进程管道按系统代码页
+        # （中文 GBK/936）解码，UTF-8 中文会被截断成非法 JSON。转义后字节全在 ASCII 区，
+        # 无论管道怎么解码都不损坏——这是机器可读接口的硬要求，不是可选优化。
+        $sb = New-Object System.Text.StringBuilder
+        foreach ($ch in $v.ToCharArray()) {
+            $code = [int]$ch
+            if ($ch -eq '\') { [void]$sb.Append('\\') }
+            elseif ($ch -eq '"') { [void]$sb.Append('\"') }
+            elseif ($ch -eq "`r") { [void]$sb.Append('\r') }
+            elseif ($ch -eq "`n") { [void]$sb.Append('\n') }
+            elseif ($ch -eq "`t") { [void]$sb.Append('\t') }
+            elseif ($code -lt 32 -or $code -gt 126) { [void]$sb.Append(('\u{0:x4}' -f $code)) }
+            else { [void]$sb.Append($ch) }
+        }
+        return '"' + $sb.ToString() + '"'
+    }
+    if ($v -is [System.Management.Automation.PSCustomObject]) {
+        $parts = @()
+        foreach ($p in $v.PSObject.Properties) { $parts += (ConvertTo-JsonLine ([string]$p.Name)) + ':' + (ConvertTo-JsonLine $p.Value) }
+        return '{' + ($parts -join ',') + '}'
+    }
+    if ($v -is [System.Collections.IDictionary]) {
+        $parts = @()
+        foreach ($k in @($v.Keys)) { $parts += (ConvertTo-JsonLine ([string]$k)) + ':' + (ConvertTo-JsonLine $v[$k]) }
+        return '{' + ($parts -join ',') + '}'
+    }
+    if ($v -is [System.Collections.IEnumerable]) {
+        $parts = @()
+        foreach ($e in @($v)) { $parts += (ConvertTo-JsonLine $e) }
+        return '[' + ($parts -join ',') + ']'
+    }
+    return ConvertTo-JsonLine ([string]$v)
+}
+
+function Write-JsonEnvelope([string]$Step, [int]$Code, [string]$Message, $Data, [string]$Notice = '') {
+    $payload = [ordered]@{
+        ok      = ($Code -eq 0)
+        step    = $Step
+        code    = $Code
+        message = $Message
+        data    = $Data
+    }
+    if ($Notice) { $payload['notice'] = $Notice }
+    [Console]::Out.WriteLine((ConvertTo-JsonLine $payload))
+    [Console]::Out.Flush()
+}
 
 # ---------- 基础工具 ----------
 function Expand-Tilde([string]$Path) {
@@ -439,11 +508,17 @@ function Get-DoctorEntries([object]$Adapter) {
     return $entries
 }
 
-function Invoke-Doctor {
-    Write-Host "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）"
+function Invoke-Doctor([switch]$AsJson) {
+    if (-not $AsJson) { Write-Host "[doctor] MCP 流量灯体检——对已部署配置逐条做真实 initialize 握手（实测才算绿）" }
     $agents = Find-Agents
-    if ($agents.Count -eq 0) { Show-Guide; exit 0 }
-    Write-Host ("[doctor] 检测到 {0} 个 agent 配置面，开始体检..." -f $agents.Count)
+    if ($agents.Count -eq 0) {
+        if ($AsJson) {
+            Write-JsonEnvelope 'doctor' $script:ExitCode.ENVIRONMENT 'no supported agent detected' ([ordered]@{ agents = 0; pass = 0; fail = 0; skip = 0; rows = @() }) 'install any supported agent, then rerun detect'
+            exit $script:ExitCode.ENVIRONMENT
+        }
+        Show-Guide; exit 0
+    }
+    if (-not $AsJson) { Write-Host ("[doctor] 检测到 {0} 个 agent 配置面，开始体检..." -f $agents.Count) }
     $pass = 0; $fail = 0; $skip = 0
     $rows = @()
     foreach ($a in $agents) {
@@ -476,6 +551,14 @@ function Invoke-Doctor {
             if ($r.ok) { $pass++; $mark = "PASS" } elseif ($r.warn) { $skip++; $mark = "WARN" } else { $fail++; $mark = "FAIL" }
             $rows += [pscustomobject]@{ Agent = $a.name; Server = $e.name; 结果 = $mark; 说明 = $r.detail }
         }
+    }
+    if ($AsJson) {
+        # 英文键供机器消费；中文列的原始行保留在人类模式（不破坏既有体验）。
+        $jsonRows = @($rows | ForEach-Object { [ordered]@{ agent = $_.Agent; server = $_.Server; result = $_.结果; detail = $_.说明 } })
+        $code = if ($fail -gt 0) { $script:ExitCode.FAILURE } else { $script:ExitCode.OK }
+        $msg  = if ($fail -gt 0) { "doctor finished with $fail failure(s)" } else { 'doctor all green' }
+        Write-JsonEnvelope 'doctor' $code $msg ([ordered]@{ agents = $agents.Count; pass = $pass; fail = $fail; skip = $skip; rows = $jsonRows })
+        exit $code
     }
     Write-Host ""
     $rows | Format-Table -AutoSize | Out-String -Width 220 | Write-Host
@@ -1539,6 +1622,20 @@ if ($env:ASP_ENGINE -eq '1') {
     # 引擎模式：只加载函数定义，不执行任何命令
 }
 else {
+# -Json 当前只覆盖只读诊断命令。其余已知命令明确以 exit 2 拒绝——不能让 agent 拿到
+# 人类文案却以为拿到了结构化结果（D31 下这是最坏的交付事故）。
+$script:JsonReadyCommands = @('detect', 'status', 'doctor')
+$script:KnownCommands     = @('install', 'update', 'detect', 'agents', 'list', 'status', 'doctor', 'export', 'migrate', 'mcp', 'ui')
+$cmdLower = $Command.ToLower()
+if ($Json) {
+    # PS5.1 Invoke-WebRequest 即使带 -UseBasicParsing 也会往进度流写"正在读取 Web 响应"，
+    # 捕获时混进 stdout 让 JSON 不可解析。JSON 模式下静默进度（人类模式保持原样）。
+    $ProgressPreference = 'SilentlyContinue'
+}
+if ($Json -and ($script:KnownCommands -contains $cmdLower) -and -not ($script:JsonReadyCommands -contains $cmdLower)) {
+    Write-JsonEnvelope $cmdLower $script:ExitCode.USAGE ("-json is not implemented for '" + $cmdLower + "'") $null 'json-ready commands: detect | status | doctor'
+    exit $script:ExitCode.USAGE
+}
 switch ($Command.ToLower()) {
     "install" {
         if (-not $Pack) { $Pack = "base" }
@@ -1557,7 +1654,17 @@ switch ($Command.ToLower()) {
         $chain = Resolve-PackDeps $Pack
         foreach ($p in $chain) { Invoke-Update $p }
     }
-    "detect"  { $agents = Find-Agents; if ($agents.Count -eq 0) { Show-Guide } else { $agents | ForEach-Object { Write-Host ("  {0,-14} {1}" -f $_.name, $_.id) } } }
+    "detect"  {
+        $agents = Find-Agents
+        if ($Json) {
+            $list = @($agents | ForEach-Object { [ordered]@{ id = [string]$_.id; name = [string]$_.name } })
+            $code = if ($list.Count -eq 0) { $script:ExitCode.ENVIRONMENT } else { $script:ExitCode.OK }
+            $msg  = if ($list.Count -eq 0) { 'no supported agent detected' } else { "detected $($list.Count) agent(s)" }
+            Write-JsonEnvelope 'detect' $code $msg ([ordered]@{ count = $list.Count; agents = $list })
+            exit $code
+        }
+        if ($agents.Count -eq 0) { Show-Guide } else { $agents | ForEach-Object { Write-Host ("  {0,-14} {1}" -f $_.name, $_.id) } }
+    }
     "agents"  { Invoke-Agents $Pack $TargetDir }
     "list"    {
         Write-Host "可用包:"
@@ -1567,14 +1674,31 @@ switch ($Command.ToLower()) {
         }
     }
     "status"  {
+        if ($Json) {
+            $state = $null; $parseError = $null
+            if (Test-Path $StateFile) {
+                try { $state = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json }
+                catch { $parseError = $_.Exception.Message }
+            }
+            $code = if ($parseError) { $script:ExitCode.INTEGRITY } else { $script:ExitCode.OK }
+            $msg  = if ($parseError) { 'state file unreadable' } elseif ($state) { 'installed' } else { 'not-installed' }
+            Write-JsonEnvelope 'status' $code $msg ([ordered]@{ installed = [bool]$state; state = $state; state_file = $StateFile })
+            exit $code
+        }
         if (Test-Path $StateFile) { Get-Content $StateFile -Raw -Encoding UTF8 }
         else { Write-Host "尚未安装任何包。" }
     }
-    "doctor"  { Invoke-Doctor }
+    "doctor"  { Invoke-Doctor -AsJson:$Json }
     "export"  { Invoke-Export $Out }
     "migrate" { Invoke-Migrate $Pack $All.IsPresent $DryRun.IsPresent }
     "mcp"     { Invoke-Mcp $Pack $TargetDir }
     "ui"      { Invoke-UI }
-    default   { Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp|ui] [pack]"; exit 1 }
+    default   {
+        if ($Json) {
+            Write-JsonEnvelope 'unknown' $script:ExitCode.USAGE ("unknown command: " + $Command) $null 'usage: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp|ui]'
+            exit $script:ExitCode.USAGE
+        }
+        Write-Host "用法: asp.ps1 [install|update|detect|agents|list|status|doctor|export|migrate|mcp|ui] [pack]"; exit 1
+    }
 }
 }
