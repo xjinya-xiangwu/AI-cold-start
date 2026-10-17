@@ -1,0 +1,41 @@
+# =====================================================================
+# issue-order.yml - D13 v2 云端签发（不依赖本机）：电商收到订单后，
+#   GitHub 网页/gh CLI 触发本 workflow → 算法生成 token → 上传 OSS
+#   （token 脚本公共读 + 订单日志私有 ACL）→ 摘要页给出买家命令。
+# 触发: Actions 页面 Run workflow（或 gh workflow run issue-order.yml -f sku=base ...）
+# 凭据: repo secrets  ASP_OSS_AK / ASP_OSS_SK（RAM 子用户，仅 OSS 权限）
+# 安全: workflow_dispatch 仅仓库写权限者可触发；fork PR 无法读取 secrets。
+# =====================================================================
+name: issue-order
+
+on:
+  workflow_dispatch:
+    inputs:
+      sku:
+        description: '商品 SKU（base=基础包 / ai-pm=PM 方向包含基础层）'
+        required: true
+        type: choice
+        options: [base, ai-pm]
+      order_ref:
+        description: '订单号/平台单号（写入订单日志）'
+        required: true
+      note:
+        description: '备注（买家昵称等，可选）'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 签发订单 token（生成 + 上传 + 自检 + 日志）
+        shell: pwsh
+        env:
+          ASP_OSS_AK: ${{ secrets.ASP_OSS_AK }}
+          ASP_OSS_SK: ${{ secrets.ASP_OSS_SK }}
+        run: |
+          ./scripts/gen-order-tokens.ps1 -Sku "${{ inputs.sku }}" -OrderRef "${{ inputs.order_ref }}" -Note "${{ inputs.note }}"
