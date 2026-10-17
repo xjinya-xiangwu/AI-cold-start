@@ -249,7 +249,7 @@ def order_archive(root, sku, version, reference, core):
         z.writestr('用户手册.html',user_manual(sku,version).encode())
         manual_path=Path(root)/'docs/manual/使用手册.docx'
         if manual_path.exists():z.writestr('使用手册.docx',manual_path.read_bytes())
-        z.writestr('安装命令.txt',('先解压完整包。\nWindows 双击 install-windows.bat，或运行：\npowershell -NoProfile -ExecutionPolicy Bypass -File ".\\install.ps1" -Cli\nMac/Linux：bash ./install.sh\nAgent 安装：复制 AGENT-INSTALL.md，填绝对路径。\n每三天更新下载链接，每月更新内容。\n').encode('utf-8-sig'))
+        z.writestr('安装命令.txt',('先解压完整包。\nWindows 双击 install-windows.bat，或运行：\npowershell -NoProfile -ExecutionPolicy Bypass -File ".\\install.ps1" -Cli\nMac/Linux：bash ./install.sh\nAgent 安装：把 AGENT-INSTALL.md 整段发给你的 AI 助手（无需填路径）。\n每三天更新下载链接，每月更新内容。\n').encode('utf-8-sig'))
         # Exact app file digests make integrity independently checkable after unzip.
         integrity={item.filename:sha256(src.read(item)) for item in src.infolist()}
         z.writestr('app-integrity.json',encoded(integrity))
