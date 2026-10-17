@@ -71,7 +71,7 @@
       "license": "MIT",
       "maintenance": "近期维护",
       "boundary": "远程服务；公开检索与个人授权能力分开配置",
-      "value_vs_current": "契合 SIAE 模型/工具情报场景；Agent-sync 注册表已列但冷启动包未预设",
+      "value_vs_current": "契合 SIAH 模型/工具情报场景；Agent-sync 注册表已列但冷启动包未预设",
       "tier": "首批试评",
       "data_flow": "远程（HF）",
       "risks": ["个人 token 权限分离"]

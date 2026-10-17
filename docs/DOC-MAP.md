@@ -23,4 +23,4 @@
 
 ## 更新纪律（I6）
 
-文档变更 → 先改 Notion 核心文档 → 仓库对照迭代（commit+测试产物）→ SIAE STATUS/broadcast 登记；只标真实完成的（"staging/未验证"必须写明）。反向（仓库先改）须回写 Notion 登记待确认。
+文档变更 → 先改 Notion 核心文档 → 仓库对照迭代（commit+测试产物）→ SIAH STATUS/broadcast 登记；只标真实完成的（"staging/未验证"必须写明）。反向（仓库先改）须回写 Notion 登记待确认。
