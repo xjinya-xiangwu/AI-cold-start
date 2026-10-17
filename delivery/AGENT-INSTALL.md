@@ -15,7 +15,7 @@
 
 ## 找到包（每个任务的第一步）
 
-包目录里应有 `install.ps1`、`install.sh`、`install-windows.bat`、`AGENT-INSTALL.md`、`delivery-manifest.json`。如果还是 `.zip` 压缩包，先解压。找不到就问我。安装目标固定为 Windows `%USERPROFILE%\asp-coldstart\app-已购SKU`、Mac/Linux `~/asp-coldstart/app-已购SKU`（SKU 见 `delivery-manifest.json` 的 `sku` 字段：base 或 ai-pm）。
+包目录里应有 `install.ps1`、`install.sh`、`install-windows.bat`、`AGENT-INSTALL.md`、`delivery-manifest.json`。如果还是 `.zip` 压缩包，**直接解压**到下载文件夹里的新文件夹（安全可逆操作，不必先问我）。找不到就问我。安装目标固定为 Windows `%USERPROFILE%\asp-coldstart\app-已购SKU`、Mac/Linux `~/asp-coldstart/app-已购SKU`（SKU 见 `delivery-manifest.json` 的 `sku` 字段：base 或 ai-pm）。
 
 ## 我想要什么 → 你做什么
 
@@ -35,10 +35,10 @@
 
 1. 读包里的 `用户手册.html` 和 `delivery-manifest.json`。报告：会装多少个技能、你检测到这台机器有哪些 AI 工具（ZCode / Claude Code / Codex / Cursor / VS Code / OpenCode / Gemini 等）、会写哪些文件。等我确认。
 2. 执行安装：
-   - Windows：运行包里的 `install.ps1`。出现本地选择页时让我勾选目标工具；如果我只想快点装完，加 `-Cli` 用自动探测结果。
+   - Windows：优先双击 `install-windows.bat`（避免命令行）；或运行包里的 `install.ps1`。安装中会弹出**本地选择页**（浏览器页面，列出检测到的 AI 工具让我勾选）；如果我只想快点装完，用 `-Cli` 模式自动探测。
    - macOS / Linux：先确认有 python3，再运行 `install.sh`。
 3. 自检三件事：技能文件都已落位；每个工具的角色/规则文件**内容非空**；旧内容有历史备份。
-4. 报告：装了什么、用哪个工具试、怎么试（例如对工具说「用 idea-grilling 拷问我一个想法」）。**提醒我重启 AI 工具**，不重启新技能不生效。
+4. 报告：装了什么、用哪个工具试、怎么试——用 `用户手册.html` 里推荐的示例句（例如「用 idea-grilling 拷问我一个想法」；若手册示例不同，以手册为准）。**提醒我重启 AI 工具**，不重启新技能不生效。
 
 ## 任务 B · 更新到新版
 
