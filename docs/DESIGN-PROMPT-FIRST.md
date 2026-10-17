@@ -50,11 +50,11 @@
 
 ## 5. 实施清单
 
-- [x] **A1** 重写 `delivery/AGENT-INSTALL.md` 为五要素零填空版（2026-10-17，本文同批）
+- [x] **A1** 重写 `delivery/AGENT-INSTALL.md` 为五要素零填空版（2026-10-17，本文同批）；同日升级为**全功能版**：任务路由 A 安装/B 更新/C 迁移/D 排查/E 导出（对应 asp install/update/migrate/doctor/export 命令面）+ OSS 签名链接语义 + 冷启动自包含（无 skill 依赖、三档能力降级）
 - [x] **A2** 本设计文档入库（本文）
 - [ ] **B1** fulfillment.py 入口排序与命名（0-发给AI助手.txt 首推）+ 用户手册.html 文案改口径——**待 P0 门禁后**动履约代码，动前跑 S1-S10
 - [ ] **B2** 商品页/手册口径统一（shop-listing、使用手册.docx）：「把这段话发给 AI」替代「双击安装」作第一卖点叙事
-- [ ] **B3** MIGRATE prompt / DOCTOR prompt 各一份，入随包文档
+- [x] **B3** MIGRATE / DOCTOR prompt——已并入 AGENT-INSTALL.md 任务 C/D，不再单独出文件
 - [ ] **B4** Agent-sync README 把「路径 B」升为路径 A（一句话 prompt 首推，巨型 PowerShell 单行移降级区）
 - [ ] **B5** 验收新增：把 AGENT-INSTALL.md 粘贴给 3 类客户端（有终端的 IDE agent / 无终端网页 agent / 手机端）实测通路，记入证据账本
 
